@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Mocha Tests</title>
+    <link href="https://cdn.rawgit.com/mochajs/mocha/2.2.5/mocha.css" rel="stylesheet"/>
+</head>
+<body>
+<div id="mocha"></div>
+
+<script src="https://cdn.rawgit.com/jquery/jquery/2.1.4/dist/jquery.min.js"></script>
+<script src="https://cdn.rawgit.com/Automattic/expect.js/0.3.1/index.js"></script>
+<script src="https://cdn.rawgit.com/mochajs/mocha/2.2.5/mocha.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.1.2/chai.js"></script>
+
+<script>mocha.setup('bdd')</script>
+
+<script src="../node_modules/systemjs/dist/system.js"></script>
+<script type="text/javascript">
+
+    System.config({
+        baseURL: '../node_modules',
+        meta: {
+            'lib/*.js': {
+                babelOptions: {
+                    "sourceMaps": true,
+                    "plugins": [
+                        "transform-decorators-legacy",
+                        "transform-es2015-modules-systemjs"
+                    ]
+                }
+            }
+        },
+        map: {
+            'plugin-babel': 'systemjs-plugin-babel/plugin-babel.js',
+            'systemjs-babel-build': 'systemjs-plugin-babel/systemjs-babel-browser.js',
+            "transform-decorators-legacy": "babel-plugin-transform-decorators-legacy/lib/index.js",
+            "transform-es2015-modules-systemjs": "babel-plugin-transform-es2015-modules-systemjs/lib/index.js"
+        },
+        transpiler: 'plugin-babel',
+        packageConfigPaths: [
+            '/node_modules/*/package.json'
+        ],
+    });
+
+    System.import("./lib/lexer.js").then(module => {
+
+        const {Lexer, Tokens} = module;
+        const {assert} = chai;
+
+        describe("Lexer Tests", function () {
+
+            class Stopwatch {
+
+                start() {
+                    this.now = performance.now();
+                    return this;
+                }
+
+                stop() {
+                    this['ms'] = performance.now() - this.now;
+                    this.now = performance.now();
+                    return this;
+                }
+            }
+
+            fetch("./lexer.fixture.js").then(response => response.text()).then(fixture => {
+
+                const lexer = new Lexer(fixture);
+
+                let t = new Stopwatch().start();
+
+                for (let token of lexer) {
+                    if (lexer.line == 1000) break;
+                }
+
+                const halfway = t.stop()['ms'];
+                assert.isBelow(halfway, 16);
+                assert.equal(lexer.line, 1000);
+                assert.equal(lexer.column, 39);
+
+                console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
+
+                t.start();
+
+                for (let token of lexer) ;
+
+                const stop = t.stop()['ms'];
+                assert.isBelow(stop, 8);
+                assert.equal(lexer.line, 2000);
+                assert.equal(lexer.column, 2);
+
+                console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));
+            });
+
+            it("comments", function () {
+                for (let token of new Lexer("  /* no comment */ ")) {
+                    assert.equal(token.type, Tokens.Comment);
+                    assert.equal(token.text, "/* no comment */");
+                }
+                let c = 0;
+                for (let token of new Lexer("  //1\n//2\n//3  ")) switch (c++) {
+                    case 0:
+                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.text, "//1");
+                        continue;
+                    case 0:
+                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.text, "//2");
+                        continue;
+                    case 0:
+                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.text, "//3");
+                        continue;
+                }
+            });
+
+            it("numbers", function () {
+                for (let token of new Lexer("1")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "1");
+                }
+                for (let token of new Lexer("\n1.1")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "1.1");
+                }
+                for (let token of new Lexer("0x1FF")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "0x1FF");
+                }
+                for (let token of new Lexer("0b110011")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "0b110011");
+                }
+                for (let token of new Lexer("0765")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "0765");
+                }
+                for (let token of new Lexer("10.001e2")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, "10.001e2");
+                }
+                for (let token of new Lexer(".01")) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, ".01");
+                }
+                let i = 0;
+                for (let token of new Lexer(".1,.2e-7\n++")) if (i++ === 0) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, ".1");
+                } else if (i++ === 1) {
+                    assert.equal(token.type, Tokens.Number);
+                    assert.equal(token.text, ".2e-7");
+                } else if (i++ === 2) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, "+");
+                    assert.equal(token.column, 1);
+                } else if (i++ === 3) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, "+");
+                }
+            });
+
+            it("literals", function () {
+
+                for (let token of new Lexer("literal")) {
+                    assert.equal(token.type, Tokens.Literal);
+                    assert.equal(token.line, 1);
+                    assert.equal(token.column, 1);
+                    assert.equal(token.text, "literal");
+                }
+
+                let c = 0;
+                for (let token of new Lexer("$name n4m3")) if (++c == 1) {
+                    assert.equal(token.type, Tokens.Literal);
+                    assert.equal(token.line, 1);
+                    assert.equal(token.column, 1);
+                    assert.equal(token.text, "$name");
+                } else if (c == 2) {
+                    assert.equal(token.type, Tokens.Literal);
+                    assert.equal(token.line, 1);
+                    assert.equal(token.column, 7);
+                    assert.equal(token.text, "n4m3");
+                }
+
+                c = 0;
+                for (let token of new Lexer("123id")) if (++c == 0) {
+                    assert.equal(token.text, "123");
+                    assert.equal(token.next.text, "id");
+                }
+
+                for (let token of new Lexer("__123__")) {
+                    assert.equal(token.text, "__123__");
+                }
+            });
+
+            it("operators", function () {
+                let c = 0;
+                for (let token of new Lexer("1 + 1")) if (++c === 2) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, "+");
+                }
+                c = 0;
+                for (let token of new Lexer("literal && literal")) if (++c === 2) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, "&&");
+                }
+                c = 0;
+                for (let token of new Lexer("literal >> 1")) if (++c === 2) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, ">>");
+                }
+                c = 0;
+                for (let token of new Lexer("literal !== x")) if (++c === 2) {
+                    assert.equal(token.type, Tokens.Symbol);
+                    assert.equal(token.text, "!==");
+                }
+            });
+
+            it("mixed", function () {
+                let count = 0;
+                for (let token of new Lexer("1 + 1")) {
+                    count++;
+                }
+                assert.equal(count, 3);
+            });
+        });
+
+        mocha.checkLeaks();
+        mocha.globals(['jQuery']);
+        mocha.run();
+    });
+</script>
+</body>
+</html>

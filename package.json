@@ -1,0 +1,31 @@
+{
+  "name": "square-root",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "mocha --compilers js:babel-core/register ./test/**/*.tests.js &",
+    "bdd": "node ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js",
+    "bdd (debug)": "node --inspect-brk ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-plugin-syntax-dynamic-import": "^6.18.0",
+    "babel-plugin-transform-decorators-legacy": "^1.3.4",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
+    "babel-plugin-transform-es2015-modules-systemjs": "^6.24.1",
+    "babel-standalone": "^6.26.0",
+    "benchmark": "^2.1.4",
+    "bootstrap": "^3.3.7",
+    "chai": "^4.1.2",
+    "cucumber": "^3.1.0",
+    "esprima": "^4.0.0",
+    "mocha": "^4.0.1",
+    "systemjs": "^0.20.19",
+    "systemjs-plugin-babel": "0.0.25"
+  },
+  "dependencies": {}
+}
