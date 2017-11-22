@@ -6,38 +6,60 @@ describe("Parser Tests", function () {
     it("lexer", function () {
         const parser = new Parser("abc = 1 + true - $id && ccc(02 / (2e7))");
         const out = parser.ast();
-        assert.deepInclude({
+        assert.deepInclude(out, {
             "expression": {
-                "left": {"name": "abc", "type": "Identifier"},
-                "right": {
+                "left": {
                     "left": {
+                        "name": "abc",
+                        "type": "Identifier"
+                    },
+                    "operator": "=",
+                    "right": {
                         "left": {
-                            "left": {"type": "Literal", "value": 1},
+                            "left": {
+                                "text": "1",
+                                "type": "Number"
+                            },
                             "operator": "+",
-                            "right": {"type": "Literal", "value": "true"},
+                            "right": {
+                                "type": "Literal",
+                                "value": "true"
+                            },
                             "type": "BinaryExpression"
                         },
                         "operator": "-",
-                        "right": {"name": "$id", "type": "Identifier"},
+                        "right": {
+                            "name": "$id",
+                            "type": "Identifier"
+                        },
                         "type": "BinaryExpression"
                     },
-                    "operator": "&&",
-                    "right": {
-                        "arguments": [{
-                            "left": {"type": "Literal", "value": 2},
-                            "operator": "/",
-                            "right": {"type": "Literal", "value": 20000000},
-                            "type": "BinaryExpression"
-                        }],
-                        "callee": {"name": "e", "type": "Identifier"},
-                        "filter": false,
-                        "type": "CallExpression"
-                    },
-                    "type": "LogicalExpression"
+                    "type": "BinaryExpression"
                 },
-                "type": "AssignmentExpression"
-            },
-            "type": "Statement"
-        }, out);
+                "operator": "&&",
+                "right": {
+                    "args": [
+                        {
+                            "left": {
+                                "text": "02",
+                                "type": "Number"
+                            },
+                            "operator": "/",
+                            "right": {
+                                "text": "2e7",
+                                "type": "Number"
+                            },
+                            "type": "BinaryExpression"
+                        }
+                    ],
+                    "callee": {
+                        "name": "ccc",
+                        "type": "Identifier"
+                    },
+                    "type": "CallExpression"
+                },
+                "type": "LogicalExpression"
+            }
+        });
     });
 });
