@@ -98,7 +98,7 @@ export function* tokenize(text) {
             let cc2 = text.charCodeAt(to);
             if (cc2 === Slash) {
                 while (cc = text.charCodeAt(++to)) if (isNewLine(cc)) break;
-                expect = yield createToken(Tokens.LineComment, from, to);
+                expect = yield createToken(Tokens.Comment, from, to);
                 continue;
             } else if (cc2 === Asterisk) {
                 while (cc = text.charCodeAt(++to)) {
@@ -106,7 +106,7 @@ export function* tokenize(text) {
                         line++;
                         lineStart = to;
                     } else if (cc === Asterisk && (text.charCodeAt(to + 1) === Slash)) {
-                        expect = yield createToken(Tokens.Comment, from, to + 2);
+                        expect = yield createToken(Tokens.BlockComment, from, to + 2);
                         continue main;
                     }
                 }
@@ -286,7 +286,7 @@ export const Tokens = {
     Comment: class extends Token {
     },
 
-    LineComment: class extends Token {
+    Comment: class extends Token {
     },
 
     LogicalOperator: class extends Token {

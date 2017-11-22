@@ -1,2 +1,2 @@
-# square-root
-Expression language for the Paper-Reports framework
+# majorana
+Expression language for the Calvin.js framework

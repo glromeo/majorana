@@ -19,9 +19,9 @@ const regexp = new RegExp([
 ].join('|'), 'g');
 
 export const Tokens = {
-    Comment: 'Comment',
+    BlockComment: 'Comment',
     Literal: 'Literal',
-    LineComment: 'LineComment',
+    Comment: 'Comment',
     Number: 'Number',
     String: 'String',
     Symbol: 'Symbol',

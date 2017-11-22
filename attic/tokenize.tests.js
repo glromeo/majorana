@@ -4,13 +4,6 @@ import fs from "fs";
 
 describe("Tokens Tests", function () {
 
-    it("fixture", function () {
-        const fixture = fs.readFileSync("test/fixture.js", 'utf8');
-        for (let token of tokenize(fixture)) {
-            console.log(">>>", token.constructor.name, token.text);
-        }
-    });
-
     it("strings", function () {
         assert.equal(tokenize("'sample'").next().value.text, "'sample'");
         assert.equal(tokenize('\'sample\'').next().value.text, "'sample'");

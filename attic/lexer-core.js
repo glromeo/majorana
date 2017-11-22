@@ -67,10 +67,10 @@ const Literals = {
 }
 
 export const Tokens = {
-    Comment: 'Comment',
+    BlockComment: 'Comment',
     Identifier: 'Identifier',
     Literal: 'Literal',
-    LineComment: 'LineComment',
+    Comment: 'Comment',
     Number: 'Number',
     String: 'String',
     Symbol: 'Symbol',
@@ -138,7 +138,7 @@ export class Lexer {
             break;
         }
 
-        this.token = {type: Tokens.Comment, text: source.substring(this.position, this.position = position)};
+        this.token = {type: Tokens.BlockComment, text: source.substring(this.position, this.position = position)};
         return cc;
     }
 

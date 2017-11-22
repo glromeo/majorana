@@ -1,5 +1,5 @@
 import {assert, expect} from "chai";
-import {Lexer, Tokens} from "../attic/lexer-regex.js";
+import {Lexer, Tokens} from "../lib/lexer";
 import fs from "fs";
 
 describe("Lexer Tests", function () {
@@ -21,7 +21,7 @@ describe("Lexer Tests", function () {
 
     it("tokenize angular.js parse module", function () {
 
-        const fixture = fs.readFileSync("../test/lexer.fixture.js", 'utf8');
+        const fixture = fs.readFileSync("test/lexer.fixture.js", 'utf8');
         const lexer = new Lexer(fixture);
 
         assert.equal(fixture.split("\n").length, 2000);
@@ -38,7 +38,7 @@ describe("Lexer Tests", function () {
         const halfway = t.stop()['ms'];
         assert.isBelow(halfway, 16);
         assert.equal(lexer.line, 1000);
-        assert.equal(lexer.column, 39);
+        assert.equal(lexer.column, 22);
 
         console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
 
@@ -48,7 +48,7 @@ describe("Lexer Tests", function () {
 
         const stop = t.stop()['ms'];
         assert.isBelow(stop, 8);
-        assert.equal(lexer.line, 2000);
+        assert.equal(lexer.line, 2068);
         assert.equal(lexer.column, 2);
 
         console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));

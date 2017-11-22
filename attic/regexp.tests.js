@@ -1,6 +1,4 @@
 import {assert, expect} from "chai";
-import {Lexer, Tokens} from "../lib/lexer-regex.js";
-import fs from "fs";
 
 describe("RegExp tests", function () {
 

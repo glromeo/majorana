@@ -43,7 +43,7 @@
         ],
     });
 
-    System.import("./lib/lexer.js").then(module => {
+    System.import("../lib/lexer.js").then(module => {
 
         const {Lexer, Tokens} = module;
         const {assert} = chai;
@@ -77,7 +77,7 @@
                 const halfway = t.stop()['ms'];
                 assert.isBelow(halfway, 16);
                 assert.equal(lexer.line, 1000);
-                assert.equal(lexer.column, 39);
+                assert.equal(lexer.column, 22);
 
                 console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
 
@@ -87,7 +87,7 @@
 
                 const stop = t.stop()['ms'];
                 assert.isBelow(stop, 8);
-                assert.equal(lexer.line, 2000);
+                assert.equal(lexer.line, 2068);
                 assert.equal(lexer.column, 2);
 
                 console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));
@@ -95,21 +95,21 @@
 
             it("comments", function () {
                 for (let token of new Lexer("  /* no comment */ ")) {
-                    assert.equal(token.type, Tokens.Comment);
+                    assert.equal(token.type, Tokens.BlockComment);
                     assert.equal(token.text, "/* no comment */");
                 }
                 let c = 0;
                 for (let token of new Lexer("  //1\n//2\n//3  ")) switch (c++) {
                     case 0:
-                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.type, Tokens.BlockComment);
                         assert.equal(token.text, "//1");
                         continue;
                     case 0:
-                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.type, Tokens.BlockComment);
                         assert.equal(token.text, "//2");
                         continue;
                     case 0:
-                        assert.equal(token.type, Tokens.Comment);
+                        assert.equal(token.type, Tokens.BlockComment);
                         assert.equal(token.text, "//3");
                         continue;
                 }
