@@ -1,5 +1,5 @@
 import {assert, expect} from "chai";
-import {Parser} from "../lib/parser.js";
+import {Parser} from "../main/parser.js";
 
 describe("Parser Tests", function () {
 

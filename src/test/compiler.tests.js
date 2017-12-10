@@ -1,5 +1,5 @@
 import {assert, expect} from "chai";
-import {Compiler} from "../lib/compiler.js";
+import {Compiler} from "../main/compiler.js";
 
 describe("Compiler Tests", function () {
 

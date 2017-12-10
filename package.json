@@ -1,11 +1,12 @@
 {
   "name": "@codebite/majorana",
   "version": "1.0.0",
-  "description": "Javascript Expression Language library for the Calvin.js framework",
+  "description": "Javascript Expression Language library for the paper-plane framework",
   "main": "lib/index.js",
   "scripts": {
+    "build": "mkdir -p lib && rollup -c",
     "test": "npm run mocha & npm run cucumber",
-    "mocha": "mocha --require babel-core/register ./test/**/*.tests.js",
+    "mocha": "mocha --require .register.js src/test/**/*.tests.js",
     "cucumber": "node ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js"
   },
   "author": "",
@@ -19,6 +20,8 @@
     "cucumber": "^3.1.0",
     "esprima": "^4.0.0",
     "mocha": "^4.0.1",
+    "rollup": "^0.52.1",
+    "rollup-plugin-node-resolve": "^3.0.0",
     "systemjs": "^0.20.19",
     "systemjs-plugin-babel": "0.0.25"
   },

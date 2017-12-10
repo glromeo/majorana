@@ -1,5 +1,5 @@
 import {assert, expect} from "chai";
-import {Lexer, Tokens} from "../lib/lexer.js";
+import {Lexer, Tokens} from "../main/lexer.js";
 
 describe("Lexer Tests", function () {
 
