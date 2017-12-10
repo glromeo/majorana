@@ -9,6 +9,7 @@ const ExpressionStatement = 'ExpressionStatement';
 const Identifier = 'Identifier';
 const Literal = 'Literal';
 const Number = 'Number';
+const String = 'String';
 const LogicalExpression = 'LogicalExpression';
 const MemberExpression = 'MemberExpression';
 const ObjectExpression = 'ObjectExpression';
@@ -26,26 +27,23 @@ export class Compiler {
 
     compile(source, sourceURL) {
         let ast, code;
-        try {
-            this.parameters.clear();
 
-            ast = new Parser(source).ast();
-            code = this[ast.type](ast);
+        this.parameters.clear();
 
-            let parameters = Array.from(this.parameters);
+        ast = new Parser(source).ast();
+        code = this[ast.type](ast);
 
-            const expression = new Function(...parameters, [
-                '//# sourceURL=' + sourceURL || 'expression[' + (compilerCounter++) + ']',
-                'return ' + code
-            ].join('\n'));
-            expression.ast = ast;
-            expression.source = source;
-            expression.parameters = parameters;
+        let parameters = Array.from(this.parameters);
 
-            return expression;
-        } catch (e) {
-            console.log('type:', ast.type, e);
-        }
+        const expression = new Function(...parameters, [
+            '//# sourceURL=' + sourceURL || 'expression[' + (compilerCounter++) + ']',
+            'return ' + code
+        ].join('\n'));
+        expression.ast = ast;
+        expression.source = source;
+        expression.parameters = parameters;
+
+        return expression;
     }
 
     [ExpressionStatement]({expression}) {
@@ -107,6 +105,10 @@ export class Compiler {
     }
 
     [Number]({text}) {
+        return text;
+    }
+
+    [String]({text}) {
         return text;
     }
 
