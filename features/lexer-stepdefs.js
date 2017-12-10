@@ -1,6 +1,6 @@
 import {defineSupportCode} from "cucumber";
 import {assert} from "chai";
-import {Lexer, Tokens} from "../lib/lexer";
+import {Lexer, Tokens} from "../src/main/lexer";
 
 defineSupportCode(function ({Given, When, Then}) {
 

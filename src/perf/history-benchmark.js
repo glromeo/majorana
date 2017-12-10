@@ -1,7 +1,7 @@
-import {tokenize} from "../attic/tokenize.js";
-import {Lexer as AngularLexer} from "../attic/angular-lexer.js";
-import {Lexer as RegexpLexer} from "../attic/regexp-lexer.js";
-import {Lexer} from "../lib/lexer.js";
+import {tokenize} from "../../attic/tokenize.js";
+import {Lexer as AngularLexer} from "../../attic/angular-lexer.js";
+import {Lexer as RegexpLexer} from "../../attic/regexp-lexer.js";
+import {Lexer} from "../main/lexer.js";
 
 const Benchmark = require('benchmark');
 
