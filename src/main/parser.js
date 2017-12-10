@@ -219,7 +219,7 @@ export class Parser extends Lexer {
                 this.cursor += 2;
                 return String.fromCharCode(cc, cc2);
             } else {
-                this.cursor++
+                this.cursor++;
                 return String.fromCharCode(cc);
             }
         }
@@ -236,7 +236,7 @@ export class Parser extends Lexer {
     consumeAdditiveOperator() {
         let cc = this.advance();
         if (cc === PlusSign || cc === MinusSign) {
-            this.cursor++
+            this.cursor++;
             return String.fromCharCode(cc);
         }
     }
@@ -252,13 +252,13 @@ export class Parser extends Lexer {
     consumeMultiplicativeOperator() {
         let cc = this.advance();
         if (cc === Asterisk || cc === Slash || cc === PercentSign) {
-            this.cursor++
+            this.cursor++;
             return String.fromCharCode(cc);
         }
     }
 
     unary() {
-        let operator = this.consumeUnaryOperator()
+        let operator = this.consumeUnaryOperator();
         if (operator) {
             const argument = this.unary();
             const prefix = true;
@@ -270,7 +270,7 @@ export class Parser extends Lexer {
     consumeUnaryOperator() {
         let cc = this.advance();
         if (cc === PlusSign || cc === MinusSign || cc === ExclamationMark) {
-            this.cursor++
+            this.cursor++;
             return String.fromCharCode(cc);
         }
     }
@@ -286,11 +286,9 @@ export class Parser extends Lexer {
         } else if (cc === LeftSquareBracket) {
             this.cursor++;
             primary = this.arrayDeclaration();
-            this.expect(RightSquareBracket);
         } else if (cc === LeftCurlyBracket) {
             this.cursor++;
             primary = this.object();
-            this.expect(RightCurlyBracket);
         } else {
             const token = this.next().token;
             switch (token.type) {
@@ -373,11 +371,16 @@ export class Parser extends Lexer {
 
         if ((cc = this.advance()) && cc !== RightCurlyBracket) do {
 
-            let token = this.next();
+            let token = this.next().token;
 
             property = {type: AST.Property, kind: 'init'};
 
-            if (token.type === Tokens.Literal) {
+            if (token.type & Tokens.Constant) {
+                property.key = {type: AST.Literal, text: token.text};
+                property.computed = false;
+                this.expect(Colon);
+                property.value = this.expression();
+            } else if (token.type & Tokens.Literal) {
                 property.computed = false;
                 if (Literals[token.text]) {
                     property.key = {type: AST.Literal, text: token.text};

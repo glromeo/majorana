@@ -62,4 +62,13 @@ describe("Parser Tests", function () {
             }
         });
     });
+
+    it("simple object", function () {
+
+        const parser = new Parser("{\n" +
+            "'k-a': 'class-a', 'k-b': 'class-b', 'k-c': 'class-c'\n" +
+            "}[classValue]");
+        const out = parser.ast();
+        assert.isOk(out);
+    });
 });

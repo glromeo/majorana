@@ -57,14 +57,16 @@ const LOWERCASE = 0b00100000;        //  CapitalE | LOWERCASE = = = LetterE
 const UPPERCASE = ~LOWERCASE;        //  LetterE  & UPPERCASE = = = CapitalE
 
 export const Tokens = {
-    BlockComment: 'BlockComment',
-    Comment:      'Comment',
-    EoF:          'EoF',
-    Literal:      'Literal',
-    Number:       'Number',
-    String:       'String',
-    Symbol:       'Symbol',
-    This:         'This'
+    EoF:            0b00000000,
+    Comment:        0b00000100,
+    BlockComment:   0b00000101,
+    LineComment:    0b00000110,
+    Constant:       0b00001000,
+    Number:         0b00001001,
+    String:         0b00001010,
+    Literal:        0b00010000,
+    Symbol:         0b00010001,
+    This:           0b00010010
 };
 
 export class Lexer {
