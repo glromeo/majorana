@@ -47,6 +47,6 @@ suite
         const faster = this.filter('fastest')[0]
         const slower = this.filter('slowest')[0]
         console.log('--------------------------------------------------')
-        console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) / 100}x`)
+        console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) - 100}%`)
     })
     .run({'async': true})

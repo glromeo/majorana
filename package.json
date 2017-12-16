@@ -4,10 +4,13 @@
   "description": "Javascript Expression Language library for the paper-plane framework",
   "main": "lib/index.js",
   "scripts": {
-    "build": "mkdir -p lib && rollup -c",
-    "test": "npm run mocha & npm run cucumber",
+    "babel": "babel src/main --out-dir lib/main",
+    "compile": "npm run babel",
+    "watch": "npm run babel -- -w",
     "mocha": "mocha --require .register.js src/test/**/*.tests.js",
-    "cucumber": "node ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js"
+    "cucumber": "node ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js",
+    "test": "npm run mocha & npm run cucumber",
+    "build": "mkdir -p lib && rollup -c"
   },
   "author": "",
   "license": "ISC",

@@ -16,34 +16,20 @@ const ObjectExpression = 'ObjectExpression';
 const Property = 'Property';
 const UnaryExpression = 'UnaryExpression';
 
-let compilerCounter = 0;
-
 export class Compiler {
 
-    constructor(options) {
-        this.options = options;
+    compile(source) {
+
         this.parameters = new Set();
-    }
 
-    compile(source, sourceURL) {
-        let ast, code;
+        const ast = new Parser(source).ast();
+        const code = this[ast.type](ast);
 
-        this.parameters.clear();
-
-        ast = new Parser(source).ast();
-        code = this[ast.type](ast);
-
-        let parameters = Array.from(this.parameters);
-
-        const expression = new Function(...parameters, [
-            '//# sourceURL=' + sourceURL || 'expression[' + (compilerCounter++) + ']',
-            'return ' + code
-        ].join('\n'));
-        expression.ast = ast;
-        expression.source = source;
-        expression.parameters = parameters;
-
-        return expression;
+        return {
+            ast,
+            code,
+            parameters: Array.from(this.parameters)
+        };
     }
 
     [ExpressionStatement]({expression}) {
