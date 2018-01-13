@@ -6,7 +6,41 @@ import {AST} from "../main/ast.js";
 
 Lexer.stripAnsi = true;
 
-describe("Parser Tests", function () {
+describe("Parser and AST Tests", function () {
+
+    it("x = 1", async function () {
+        assert.deepEqual(new Parser().parse(this.test.title), {
+            "expression": {
+                "target": {
+                    "text": "x"
+                },
+                "value": {
+                    "text": "1",
+                    "type": Number
+                }
+            }
+        });
+    });
+
+    it("this[x] = 1", function () {
+        assert.deepEqual(new Parser().parse(this.test.title), {
+            "expression": {
+                "target": {
+                    "computed": true,
+                    "object": AST.Literals['this'],
+                    "property": {
+                        "expression": {
+                            "text": "x"
+                        }
+                    }
+                },
+                "value": {
+                    "text": "1",
+                    "type": Number
+                }
+            }
+        });
+    });
 
     beforeEach(function () {
         try {
@@ -73,38 +107,4 @@ describe("Parser Tests", function () {
         });
     });
 
-
-    it("x = 1", async function () {
-        assert.deepEqual(new Parser().parse(this.test.title), {
-            "expression": {
-                "target": {
-                    "text": "x"
-                },
-                "value": {
-                    "text": "1",
-                    "type": Number
-                }
-            }
-        });
-    });
-
-    it("this[x] = 1", function () {
-        assert.deepEqual(new Parser().parse(this.test.title), {
-            "expression": {
-                "target": {
-                    "computed": true,
-                    "object": AST.Literals['this'],
-                    "property": {
-                        "expression": {
-                            "text": "x"
-                        }
-                    }
-                },
-                "value": {
-                    "text": "1",
-                    "type": Number
-                }
-            }
-        });
-    });
 });
