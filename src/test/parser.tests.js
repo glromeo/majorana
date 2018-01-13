@@ -3,108 +3,168 @@ import {assert} from "chai";
 import {Parser} from "../main/parser.js";
 import {Lexer} from "../main/lexer.js";
 import {AST} from "../main/ast.js";
+import {Operators} from "../main/operators";
 
 Lexer.stripAnsi = true;
 
 describe("Parser Tests", function () {
 
     beforeEach(function () {
-        try {
-            this.ast = new Parser().parse(this.currentTest.title).expression;
-        } catch (e) {
-            assert.equal(e.message, "Unexpected input: `errors`, at line: 1, column: 8.");
-        }
+        this.ast = new Parser().parse(this.currentTest.title);
     });
 
-    describe("parseObject", function () {
-
-        it("{}", async function () {
-            let node = this.ast;
-            assert.notOwnProperty(node, 'initializer');
-            assert.notOwnProperty(node, 'values');
-            assert.deepEqual(await node.resolve(null, {}), {});
-            assert.notStrictEqual(await node.resolve(), await node.resolve());
-        });
-        it("{p:true}", async function () {
-            let node = this.ast;
-            assert.isTrue(node.hasOwnProperty('initializer'));
-            assert.deepEqual(await node.resolve(), {p: true});
-        });
-        it("{p:true, p:false}", async function () {
-            let node = this.ast;
-            assert.deepEqual(await node.resolve(), {p: false});
-        });
-        it("{[x]:y}", async function () {
-            let node = this.ast;
-            let promise = new Promise(resolve => setTimeout(() => resolve('Q'), 10));
-            assert.deepEqual(await node.resolve(null, {x: 'P', y: promise}), {P: 'Q'});
-        });
-
-        it("syntax errors", function () {
-            let p = new Parser(), parse = p.parse.bind(p);
-            Lexer.debug = true;
-            assert.throws(() => parse("{[x}"), "Expected ] but was }, at line: 1, column: 4.");
-            assert.throws(() => parse("{[x,y]}"), "Expected ] but was ,");
-            assert.throws(() => parse("{[z],}"), "Expected : but was ,");
-        });
-    });
-
-    describe("parseArray", function () {
-        it("[]", async function () {
-            let node = this.ast;
-            assert.deepEqual(await node.resolve(), []);
-            assert.notStrictEqual(await node.resolve(), await node.resolve());
-        });
-        it("[1]", async function () {
-            let node = this.ast;
-            assert.deepEqual(await node.resolve(), [1]);
-        });
-        it("[1,,3].length", async function () {
-            let node = this.ast;
-            assert.deepEqual(await node.resolve(), [1]);
-        });
-        it("[true,'false',x(), !!this]", async function () {
-            let node = this.ast;
-            assert.deepEqual(await node.resolve(null, {
-                x: Promise.resolve(function () {
-                    return this;
-                })
-            }), [true, '\'false\'', null, false]);
-        });
-    });
-
+    // Assignment
 
     it("x = 1", async function () {
-        assert.deepEqual(new Parser().parse(this.test.title), {
-            "expression": {
-                "target": {
-                    "text": "x"
-                },
-                "value": {
-                    "text": "1",
-                    "type": Number
-                }
-            }
-        });
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.AssignmentExpression);
+        assert.instanceOf(expression.left, AST.Identifier);
+        assert.instanceOf(expression.right, AST.Constant);
+        assert.equal(expression.right.type, Number);
     });
 
-    it("this[x] = 1", function () {
-        assert.deepEqual(new Parser().parse(this.test.title), {
-            "expression": {
-                "target": {
-                    "computed": true,
-                    "object": AST.Literals['this'],
-                    "property": {
-                        "expression": {
-                            "text": "x"
-                        }
-                    }
-                },
-                "value": {
-                    "text": "1",
-                    "type": Number
-                }
-            }
-        });
+    it("this[x] = '1'", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.AssignmentExpression);
+        assert.instanceOf(expression.left, AST.MemberExpression);
+        assert.equal(expression.left.object, AST.Literals.this);
+        assert.instanceOf(expression.left.member, AST.Identifier);
+        assert.equal(expression.left.member.name, 'x');
+        assert.strictEqual(expression.left.member.name, expression.left.member.symbol());
+        assert.instanceOf(expression.right, AST.Constant);
+        assert.equal(expression.right.type, String);
     });
+
+    // Comma
+
+    it("x, null, true", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.CommaExpression);
+        assert.instanceOf(expression.expressions[0], AST.Identifier);
+        assert.strictEqual(expression.expressions[1], AST.Literals.null);
+        assert.strictEqual(expression.expressions[2], AST.Literals.true);
+    });
+
+    // Unary & Ternary
+
+    it("!x === true ? null : x + x", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.TernaryExpression);
+        assert.instanceOf(expression.test, AST.EqualityExpression);
+        assert.instanceOf(expression.test.left, AST.UnaryExpression);
+        assert.strictEqual(expression.consequent, AST.Literals.null);
+        assert.instanceOf(expression.alternate, AST.AdditiveExpression);
+    });
+
+    // Logical
+
+    it("x && (y || z) || true", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.LogicalExpression);
+        assert.instanceOf(expression.left, AST.LogicalExpression);
+        assert.strictEqual(expression.right, AST.Literals.true);
+        assert.instanceOf(expression.left.left, AST.Identifier);
+        assert.instanceOf(expression.left.right, AST.LogicalExpression);
+        assert.instanceOf(expression.left.right.left, AST.Identifier);
+        assert.strictEqual(expression.left.right.left.setter, AST.Identifier.prototype.setter);
+        assert.instanceOf(expression.left.right.right, AST.Identifier);
+        assert.strictEqual(expression.left.right.right.setter, AST.Identifier.prototype.setter);
+    });
+
+    // Equality
+
+    it("x == 1, y == true", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.CommaExpression);
+        assert.instanceOf(expression.expressions[0], AST.EqualityExpression);
+        assert.instanceOf(expression.expressions[1], AST.EqualityExpression);
+    });
+
+    // Relational
+
+    it("x <= 1 && (y > 1)", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.LogicalExpression);
+        assert.instanceOf(expression.left, AST.RelationalExpression);
+        assert.strictEqual(expression.left.operator, Operators.Relational['<=']);
+        assert.instanceOf(expression.right, AST.RelationalExpression);
+        assert.strictEqual(expression.right.operator, Operators.Relational['>']);
+    });
+
+    // Additive & Multiplicative (these cover primary's parenthesis as well)
+
+    it("1 + 2 * 3", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.AdditiveExpression);
+        assert.instanceOf(expression.right, AST.MultiplicativeExpression);
+        assert.equal(await expression.right.left.eval(), 2);
+    });
+
+    it("1 * ( 2 + 3 )", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.MultiplicativeExpression);
+        assert.instanceOf(expression.right, AST.AdditiveExpression);
+        assert.equal(await expression.right.left.eval(), 2);
+    });
+
+    it("1 * 2 + 3", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.AdditiveExpression);
+        assert.instanceOf(expression.left, AST.MultiplicativeExpression);
+        assert.equal(await expression.right.eval(), 3);
+        assert.equal(await expression.left.left.eval(), 1);
+    });
+
+    // Primary
+
+    it("x[0]", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.MemberExpression);
+        assert.instanceOf(expression.member, AST.Constant);
+    });
+
+    it("['x', y][y = 2]", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.MemberExpression);
+        assert.instanceOf(expression.member, AST.AssignmentExpression);
+        assert.instanceOf(expression.object, AST.ArrayExpression);
+        assert.instanceOf(expression.object.elements[0], AST.Constant);
+        assert.strictEqual(expression.object.elements[0].type, String);
+        assert.instanceOf(expression.object.elements[1], AST.Identifier);
+    });
+
+    it("{alpha: 0}[y = 2]", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.MemberExpression);
+        assert.instanceOf(expression.member, AST.AssignmentExpression);
+        assert.instanceOf(expression.object, AST.ObjectExpression);
+        assert.instanceOf(expression.object.properties[0].key, AST.Identifier);
+        assert.instanceOf(expression.object.properties[0].value, AST.Constant);
+    });
+
+    it("{alpha: 0, [y = 'y']: {}}", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.ObjectExpression);
+        assert.instanceOf(expression.properties[1].key, AST.AssignmentExpression);
+        assert.instanceOf(expression.properties[1].value, AST.ObjectExpression);
+    });
+
+    // Call
+
+    it("x(y)", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.CallExpression);
+        assert.instanceOf(expression.callee, AST.Identifier);
+        assert.instanceOf(expression.parameters[0], AST.Identifier);
+    });
+
+    it("(x = y)(1, c('2'))", async function () {
+        const {expression} = this.ast;
+        assert.instanceOf(expression, AST.CallExpression);
+        assert.instanceOf(expression.callee, AST.AssignmentExpression);
+        assert.instanceOf(expression.parameters[0], AST.Constant);
+        assert.instanceOf(expression.parameters[1], AST.CallExpression);
+        assert.instanceOf(expression.parameters[1].parameters[0], AST.Constant);
+    });
+
 });

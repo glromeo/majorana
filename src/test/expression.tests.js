@@ -1,8 +1,8 @@
 import {describe, it, beforeEach} from "mocha";
 import {assert, expect} from "chai";
-import {Interpreter} from "../main/interpreter.js";
+import {Expression} from "../main/expression.js";
 
-describe("Interpreter Tests", function () {
+describe("Expression Tests", function () {
 
     let context, self;
 
@@ -12,8 +12,16 @@ describe("Interpreter Tests", function () {
     });
 
     it("x = 1", async function () {
-        assert.equal(await new Interpreter(this.test.title).eval(context, self), 1);
+        assert.equal(await new Expression(this.test.title).invoke(self, context), 1);
         assert.equal(context.x, 1);
+        assert.equal(self.x, undefined);
+    });
+
+    it("this.x = y", async function () {
+        context.y = "Hello world";
+        assert.equal(await new Expression(this.test.title).invoke(self, context), "Hello world");
+        assert.equal(context.x, undefined);
+        assert.equal(self.x, "Hello world");
     });
 
 });

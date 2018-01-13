@@ -1,3 +1,3 @@
 export {Lexer} from "./lexer";
 export {Parser} from "./parser";
-export {Compiler} from "./compiler";
+export {Expression} from "./expression";

@@ -1,16 +1,16 @@
 {
   "name": "@codebite/majorana",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Javascript Expression Language library for the paper-plane framework",
   "main": "lib/index.js",
   "scripts": {
-    "babel": "babel src/main --out-dir lib/main",
+    "babel": "npx babel src/main --out-dir lib/main --source-maps",
     "compile": "npm run babel",
     "watch": "npm run babel -- -w",
-    "mocha": "mocha --require .register.js src/test/**/*.tests.js",
-    "cucumber": "node ./node_modules/cucumber/bin/cucumber.js --compiler es6:babel-core/register.js",
-    "test": "npm run mocha & npm run cucumber",
-    "build": "mkdir -p lib && rollup -c"
+    "mocha": "nyc mocha --require .register.js src/test/**/*.tests.js",
+    "cucumber": "nyc cucumber.js --require .register.js",
+    "test": "npm run mocha",
+    "build": "mkdir -p lib && npx rollup -c"
   },
   "author": "",
   "license": "ISC",
@@ -20,13 +20,19 @@
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "benchmark": "^2.1.4",
     "chai": "^4.1.2",
-    "cucumber": "^3.1.0",
+    "chai-string": "^1.4.0",
+    "cucumber": "^3.2.0",
     "esprima": "^4.0.0",
     "mocha": "^4.0.1",
+    "nyc": "^11.4.1",
     "rollup": "^0.52.1",
     "rollup-plugin-node-resolve": "^3.0.0",
+    "strip-ansi": "^4.0.0",
     "systemjs": "^0.20.19",
     "systemjs-plugin-babel": "0.0.25"
   },
-  "dependencies": {}
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "chalk": "^2.3.0"
+  }
 }

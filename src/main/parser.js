@@ -1,415 +1,285 @@
-import {Lexer, Tokens} from "./lexer.js"
+import {Lexer} from "./lexer"
+import {CharCode} from "./charcodes";
+import {Tokens} from "./language";
+import {AST} from "./ast";
+import {Operators} from "./operators";
 
-const NewLine = 0x000A;             //  \n
-const Space = 0x0020;               //  SPACE
-const ExclamationMark = 0x0021;     //  !
-const QuotationMark = 0x0022;       //  "
-const Hashtag = 0x0023;             //  #
-const DollarSign = 0x0024;          //  $
-const PercentSign = 0x0025;         //  %
-const Ampersand = 0x0026;           //  &
-const Apostrophe = 0x0027;          //  '
-const LeftParenthesis = 0x0028;     //  (
-const RightParenthesis = 0x0029;    //  )
-const Asterisk = 0x002A;            //  *
-const PlusSign = 0x002B;            //  +
-const Comma = 0x002C;               //  ,
-const MinusSign = 0x002D;           //  -
-const FullStop = 0x002E;            //  .
-const Slash = 0x002F;               //  /
-const DigitZero = 0x0030;           //  0
-const DigitOne = 0x0031;            //  1
-const DigitEight = 0x0039;          //  8
-const DigitNine = 0x0039;           //  9
-const Colon = 0x003A;               //  :
-const Semicolon = 0x003B;           //  ;
-const LessThanSign = 0x003C;        //  <
-const EqualSign = 0x003D;           //  =
-const GreaterThanSign = 0x003E;     //  >
-const QuestionMark = 0x003F;        //  ?
-const AtSign = 0x0040;              //  @
-const CapitalA = 0x0041;            //  A
-const CapitalB = 0x0042;            //  B
-const CapitalE = 0x0045;            //  E
-const CapitalF = 0x0046;            //  F
-const CapitalU = 0x0055;            //  U
-const CapitalX = 0x0058;            //  X
-const CapitalZ = 0x005A;            //  Z
-const LeftSquareBracket = 0x005B;   //  [
-const Backslash = 0x005C;           //  \
-const RightSquareBracket = 0x005D;  //  ]
-const CircumflexAccent = 0x005E;    //  ^
-const LowLine = 0x005F;             //  _   [0101 1111] To Uppercase (e.g. 0x78 & 0x5F = 0x58 )
-const GraveAccent = 0x0060;         //  `
-const LetterA = 0x0061;             //  a
-const LetterB = 0x0062;             //  b
-const LetterE = 0x0065;             //  e
-const LetterF = 0x0066;             //  f
-const LetterU = 0x0075;             //  u
-const LetterX = 0x0078;             //  x
-const LetterZ = 0x007A;             //  z
-const LeftCurlyBracket = 0x007B;    //  {
-const Pipe = 0x007C;                //  |
-const RightCurlyBracket = 0x007D;   //  }
-const Tilde = 0x007E;               //  ~
-const Delete = 0x007F;              //  DEL
-const NBSP = 0x00A0;                //  Non breaking space
+const {
+    Ampersand, LeftParenthesis, RightParenthesis, Comma, FullStop, Colon, EqualSign, QuestionMark, LeftSquareBracket,
+    RightSquareBracket, LeftCurlyBracket, Pipe, RightCurlyBracket
+} = CharCode;
 
-const LOWERCASE = 0b00100000;       // CapitalE | LOWERCASE === LetterE
-const UPPERCASE = ~LOWERCASE;       // LetterE  & UPPERCASE === CapitalE
+const defaultSymbols = Object.entries(Operators).reduce((symbols, [name, group]) => {
+    symbols[name] = Object.keys(group);
+    return symbols;
+}, {});
 
-const Literals = {
-    'this': true,
-    'true': true,
-    'false': true,
-    'undefined': true,
-    'null': true
-};
-
-/**
- *
- */
-class ParseError extends Error {
-    constructor(parser, message) {
+export class ParserError extends Error {
+    constructor(lexer, message) {
         super(message);
-        this.token = parser.token;
+        this.token = lexer.token;
     }
 }
 
-export const AST = {
-    ExpressionStatement: 'ExpressionStatement',
-    AssignmentExpression: 'AssignmentExpression',
-    ConditionalExpression: 'ConditionalExpression',
-    LogicalExpression: 'LogicalExpression',
-    BinaryExpression: 'BinaryExpression',
-    UnaryExpression: 'UnaryExpression',
-    CallExpression: 'CallExpression',
-    MemberExpression: 'MemberExpression',
-    Identifier: 'Identifier',
-    Literal: 'Literal',
-    Number: 'Number',
-    String: 'String',
-    ArrayExpression: 'ArrayExpression',
-    Property: 'Property',
-    ObjectExpression: 'ObjectExpression'
-};
+export class Parser {
 
-/**
- *
- */
-export class Parser extends Lexer {
-
-    constructor(text) {
-        super(text);
+    constructor(operatorSymbols) {
+        if (operatorSymbols) {
+            const allSymbols = {};
+            for (const [name, symbols] of Object.entries(operatorSymbols)) allSymbols[name] = symbols;
+            for (const [name, symbols] of Object.entries(defaultSymbols)) allSymbols[name] = symbols;
+            this.operatorSymbols = Lexer.compileSymbols(allSymbols);
+        } else {
+            this.operatorSymbols = Parser.defaultSymbols || (
+                Parser.defaultSymbols = Lexer.compileSymbols(defaultSymbols)
+            );
+        }
     }
 
-    static parse(text) {
-        return new Parser(text).ast();
-    }
-
-    ast() {
-        const ast = this.expressionStatement();
-        if (this.cursor < this.source.length) {
-            throw new ParseError(this, `Unexpected input: ${
-                this.source.substring(this.cursor, Math.min(this.cursor + 10, this.source.length))
-                }... at line: ${
-                this.line
-                }, column: ${
-                this.column
-                }`);
+    parse(text) {
+        const lexer = new Lexer(text, this.operatorSymbols);
+        const ast = new AST.Expression(this.parseExpression(lexer));
+        if (lexer.done) {
+            lexer.error("Unexpected input: " + lexer.debug(20));
         }
         return ast;
     }
 
-    expressionStatement() {
-        return {type: AST.ExpressionStatement, expression: this.filterChain()};
+    parseExpression(lexer) {
+        return this.parseComma(lexer);
     }
 
-    filterChain() {
-        let expression = this.expression();
-        while (this.consume(Pipe)) {
-            expression = this.filter(expression);
+    parseComma(lexer) {
+        let assignment = this.parseAssignment(lexer);
+        if (lexer.peek === Comma) {
+            const expressions = [assignment];
+            do {
+                lexer.advance(1);
+                expressions.push(this.parseTernary(lexer));
+            } while (lexer.peek === Comma);
+            return new AST.CommaExpression(expressions);
         }
-        return expression;
+        return assignment;
     }
 
-    expression() {
-        return this.assignment();
-    }
-
-    assignment() {
-        let result = this.ternary();
-        if (this.consume(EqualSign)) {
-            if (result.type !== Identifier && result.type !== MemberExpression) {
-                throw new ParseError(this, `Trying to assign a value to a non l-value: '${result}'`);
+    parseAssignment(lexer) {
+        const ternary = this.parseTernary(lexer);
+        if (lexer.peek === EqualSign) {
+            lexer.advance(1);
+            const right = this.parseAssignment(lexer);
+            if (ternary.write) {
+                return new AST.AssignmentExpression(ternary, right);
+            } else {
+                throw new ParserError(lexer, `Trying to assign to a non l-value: '${ternary}'`);
             }
-            result = {type: AST.AssignmentExpression, left: result, right: this.assignment()};
+        } else {
+            return ternary;
         }
-        return result;
     }
 
-    ternary() {
-        const test = this.logicalOR();
-        if (this.consume(QuestionMark)) {
-            const alternate = this.expression();
-            if (this.expect(Colon)) {
-                const consequent = this.expression();
-                return {type: AST.ConditionalExpression, test: test, alternate: alternate, consequent: consequent};
-            }
+    parseTernary(lexer) {
+        const test = this.parseLogicalOR(lexer);
+        if (lexer.peek === QuestionMark) {
+            lexer.advance(1);
+            const consequent = this.parseExpression(lexer);
+            lexer.expect(Colon);
+            const alternate = this.parseExpression(lexer);
+            return new AST.TernaryExpression(test, consequent, alternate);
         }
         return test;
     }
 
-    logicalOR() {
-        let left = this.logicalAND();
-        while (this.consumeTwo(Pipe, Pipe)) {
-            left = {type: AST.LogicalExpression, operator: '||', left: left, right: this.logicalAND()};
+    parseLogicalOR(lexer) {
+        let left = this.parseLogicalAND(lexer);
+        while (lexer.peek === Pipe && lexer.consumeTwo(Pipe)) {
+            left = new AST.LogicalExpression('||', left, this.parseLogicalAND(lexer));
         }
         return left;
     }
 
-    logicalAND() {
-        let left = this.equality();
-        while (this.consumeTwo(Ampersand, Ampersand)) {
-            left = {type: AST.LogicalExpression, operator: '&&', left: left, right: this.equality()};
+    parseLogicalAND(lexer) {
+        let left = this.parseEquality(lexer);
+        while (lexer.peek === Ampersand && lexer.consumeTwo(Ampersand)) {
+            left = new AST.LogicalExpression('&&', left, this.parseEquality(lexer));
         }
         return left;
     }
 
-    equality() {
-        let left = this.relational(), operator;
-        while (operator = this.consumeEqualityOperator()) {
-            left = {type: AST.BinaryExpression, operator: operator, left: left, right: this.relational()};
+    parseEquality(lexer) {
+        let left = this.parseRelational(lexer), operator;
+        while (operator = lexer.consumeSymbol('Equality')) {
+            left = new AST.EqualityExpression(operator, left, this.parseRelational(lexer));
         }
         return left;
     }
 
-    consumeEqualityOperator() {
-        let cc = this.advance();
-        if (cc === ExclamationMark || cc === EqualSign) {
-            if (this.source.charCodeAt(this.cursor + 1) === EqualSign) {
-                if (this.source.charCodeAt(this.cursor + 2) === EqualSign) {
-                    this.cursor += 3;
-                    return String.fromCharCode(cc, EqualSign, EqualSign);
-                } else {
-                    this.cursor += 2;
-                    return String.fromCharCode(cc, EqualSign);
-                }
-            } else {
-                this.cursor++;
-                return String.fromCharCode(cc);
-            }
-        }
-    }
-
-    relational() {
-        let left = this.additive(), operator;
-        while (operator = this.consumeRelationalOperator()) {
-            const right = this.additive();
-            left = {type: AST.BinaryExpression, operator: operator, left: left, right: this.additive()};
+    parseRelational(lexer) {
+        let left = this.parseAdditive(lexer), operator;
+        while (operator = lexer.consumeSymbol('Relational')) {
+            left = new AST.RelationalExpression(operator, left, this.parseAdditive(lexer));
         }
         return left;
     }
 
-    consumeRelationalOperator() {
-        let cc = this.advance();
-        if (cc === GreaterThanSign || cc === LessThanSign) {
-            const cc2 = this.source.charCodeAt(this.cursor + 1);
-            if (cc2 === EqualSign || cc2 === cc) {
-                this.cursor += 2;
-                return String.fromCharCode(cc, cc2);
-            } else {
-                this.cursor++;
-                return String.fromCharCode(cc);
-            }
-        }
-    }
-
-    additive() {
-        let left = this.multiplicative(), operator;
-        while (operator = this.consumeAdditiveOperator()) {
-            left = {type: AST.BinaryExpression, operator: operator, left: left, right: this.multiplicative()};
+    parseAdditive(lexer) {
+        let left = this.parseMultiplicative(lexer), operator;
+        while (operator = lexer.consumeSymbol('Additive')) {
+            left = new AST.AdditiveExpression(operator, left, this.parseMultiplicative(lexer));
         }
         return left;
     }
 
-    consumeAdditiveOperator() {
-        let cc = this.advance();
-        if (cc === PlusSign || cc === MinusSign) {
-            this.cursor++;
-            return String.fromCharCode(cc);
-        }
-    }
-
-    multiplicative() {
-        let left = this.unary(), operator;
-        while (operator = this.consumeMultiplicativeOperator()) {
-            left = {type: AST.BinaryExpression, operator: operator, left: left, right: this.unary()};
+    parseMultiplicative(lexer) {
+        let left = this.parseUnary(lexer), operator;
+        while (operator = lexer.consumeSymbol('Multiplicative')) {
+            left = new AST.MultiplicativeExpression(operator, left, this.parseUnary(lexer));
         }
         return left;
     }
 
-    consumeMultiplicativeOperator() {
-        let cc = this.advance();
-        if (cc === Asterisk || cc === Slash || cc === PercentSign) {
-            this.cursor++;
-            return String.fromCharCode(cc);
-        }
-    }
-
-    unary() {
-        let operator = this.consumeUnaryOperator();
+    parseUnary(lexer) {
+        let operator = lexer.consumeSymbol('Unary');
         if (operator) {
-            const argument = this.unary();
-            const prefix = true;
-            return {type: AST.UnaryExpression, operator: operator, prefix: true, argument: this.unary()};
+            return new AST.UnaryExpression(true, operator, this.parseUnary(lexer));
         }
-        return this.primary();
+        return this.parsePrimary(lexer);
     }
 
-    consumeUnaryOperator() {
-        let cc = this.advance();
-        if (cc === PlusSign || cc === MinusSign || cc === ExclamationMark) {
-            this.cursor++;
-            return String.fromCharCode(cc);
-        }
-    }
+    parsePrimary(lexer) {
 
-    primary() {
+        let primary;
 
-        let primary, cc = this.advance();
-
-        if (cc === LeftParenthesis) {
-            this.cursor++;
-            primary = this.filterChain();
-            this.expect(RightParenthesis);
-        } else if (cc === LeftSquareBracket) {
-            this.cursor++;
-            primary = this.arrayDeclaration();
-        } else if (cc === LeftCurlyBracket) {
-            this.cursor++;
-            primary = this.object();
+        if (lexer.peek === LeftParenthesis) {
+            lexer.advance(1);
+            primary = this.parseExpression(lexer);
+            lexer.expect(RightParenthesis);
+        } else if (lexer.peek === LeftSquareBracket) {
+            lexer.advance(1);
+            primary = this.parseArray(lexer);
+            lexer.expect(RightSquareBracket);
+        } else if (lexer.peek === LeftCurlyBracket) {
+            lexer.advance(1);
+            primary = this.parseObject(lexer);
+            lexer.expect(RightCurlyBracket);
         } else {
-            const token = this.next().token;
+            const token = lexer.nextToken();
             switch (token.type) {
                 case Tokens.Literal:
-                    if (!Literals[token.text]) {
-                        primary = {type: AST.Identifier, name: token.text};
-                    } else {
-                        primary = {type: AST.Literal, value: token.text};
-                    }
+                    primary = AST.Literals[token.text] || new AST.Identifier(token.text);
                     break;
                 case Tokens.String:
-                    primary = {type: AST.String, value: token.text};
+                    primary = new AST.Constant(String, token.text);
                     break;
                 case Tokens.Number:
-                    primary = {type: AST.Number, text: token.text};
+                    primary = new AST.Constant(Number, token.text);
                     break;
                 default: {
-                    throw new ParseError(this, `Not a primary expression: ${this.token.text}`);
+                    throw new ParserError(lexer, `Not a primary expression: ${this.token.text}`);
                 }
             }
         }
 
-        do switch (cc = this.advance()) {
-            case LeftParenthesis:
-                this.cursor++;
-                primary = {type: AST.CallExpression, callee: primary, args: this.parseArguments()};
-                this.expect(RightParenthesis);
-                continue;
-            case LeftSquareBracket:
-                this.cursor++;
-                primary = {type: AST.MemberExpression, object: primary, property: this.expression(), computed: true};
-                this.expect(RightSquareBracket);
-                continue;
-            case FullStop:
-                this.cursor++;
-                primary = {type: AST.MemberExpression, object: primary, property: this.identifier(), computed: false};
-                continue;
-            default:
-                return primary;
+        do if (lexer.peek === LeftParenthesis) {
+            lexer.advance(1);
+            primary = new AST.CallExpression(primary, this.parseArguments(lexer));
+            lexer.expect(RightParenthesis);
+        } else if (lexer.peek === LeftSquareBracket) {
+            lexer.advance(1);
+            primary = new AST.MemberExpression(primary, this.parseExpression(lexer), true);
+            lexer.expect(RightSquareBracket);
+        } else if (lexer.peek === FullStop) {
+            lexer.advance(1);
+            primary = new AST.MemberExpression(primary, this.parseIdentifier(lexer), false);
+        } else {
+            return primary;
         } while (true);
     }
 
-    filter(token, baseExpression) {
-        const args = [baseExpression];
-        const result = {type: AST.CallExpression, callee: this.identifier(), args: args, filter: true};
-
-        while (this.consume(Colon)) {
-            args.push(this.expression());
-        }
-        return result;
-    }
-
-    parseArguments() {
-        let cc, args = [];
-        if ((cc = this.advance()) && cc !== RightParenthesis) do {
-            args.push(this.filterChain());
-        } while (this.consume(Comma));
+    parseArguments(lexer) {
+        let args = [];
+        if (lexer.peek && lexer.peek !== RightParenthesis) do {
+            if (lexer.peek === Comma || lexer.peek === RightParenthesis) {
+                args.push(AST.Literals.undefined);
+                continue;
+            }
+            args.push(this.parseAssignment(lexer));
+        } while (lexer.consume(Comma));
         return args;
     }
 
-    identifier() {
-        const token = this.nextLiteral().token;
-        if (token.type !== Tokens.Literal || Literals[token.text]) {
-            throw new ParseError(this, `Expected <identifier> but found ${ this.token.text }`);
+    parseIdentifier(lexer) {
+        const token = lexer.nextLiteral();
+        if (token.type !== Tokens.Literal || AST.Literals[token.text]) {
+            throw new ParserError(lexer, `Expected <identifier> but found ${ this.token.text }`);
         }
-        return {type: AST.Identifier, name: token.text}
+        return new AST.Identifier(token.text, true);
     }
 
-    arrayDeclaration() {
-        let cc, elements = [];
-        if ((cc = this.advance()) && cc !== RightSquareBracket) do {
-            elements.push(this.expression());
-        } while (this.consume(Comma));
-        this.expect(RightSquareBracket);
-        return {type: AST.ArrayExpression, elements: elements};
+    parseArray(lexer) {
+        let elements = [];
+        if (lexer.peek && lexer.peek !== RightSquareBracket) do {
+            if (lexer.peek === Comma || lexer.peek === RightSquareBracket) {
+                elements.push(AST.Literals.undefined);
+                continue;
+            }
+            elements.push(this.parseAssignment(lexer));
+        } while (lexer.consume(Comma));
+        return new AST.ArrayExpression(elements);
     }
 
-    object() {
-        let cc, properties = [], property;
+    /**
+     *
+     * @param {Lexer} lexer
+     * @return {*}
+     */
+    parseObject(lexer) {
 
-        if ((cc = this.advance()) && cc !== RightCurlyBracket) do {
+        let properties = [], key, value, computed;
 
-            let token = this.next().token;
+        if (lexer.peek && lexer.peek !== RightCurlyBracket) do {
 
-            property = {type: AST.Property, kind: 'init'};
-
-            if (token.type & Tokens.Constant) {
-                property.key = {type: AST.Literal, text: token.text};
-                property.computed = false;
-                this.expect(Colon);
-                property.value = this.expression();
-            } else if (token.type & Tokens.Literal) {
-                property.computed = false;
-                if (Literals[token.text]) {
-                    property.key = {type: AST.Literal, text: token.text};
-                    this.expect(Colon);
-                    property.value = this.expression();
-                } else {
-                    property.key = {type: AST.Identifier, name: token.text};
-                    if (this.consume(Colon)) {
-                        property.value = this.expression();
-                    } else {
-                        property.value = property.key;
-                    }
-                }
-            } else if (token.text === '[') {
-                property.computed = true;
-                property.key = this.expression();
-                this.expect(RightSquareBracket);
-                this.expect(Colon);
-                property.value = this.expression();
-            } else {
-                throw new ParseError(this, `Invalid key: '${this.token.text}'`);
+            if (lexer.peek === Comma || lexer.peek === RightCurlyBracket) {
+                continue;
             }
 
-            properties.push(property);
+            if (lexer.consume(LeftSquareBracket)) {
+                computed = true;
+                key = this.parseAssignment(lexer);
+                lexer.expect(RightSquareBracket);
+                lexer.expect(Colon);
+                value = this.parseAssignment(lexer);
+            } else {
+                computed = false;
+                let token = lexer.nextToken();
+                switch (token.type) {
+                    case Tokens.Number:
+                        key = new AST.Constant(Number, token.text);
+                        lexer.expect(Colon);
+                        value = this.parseAssignment(lexer);
+                        break;
+                    case Tokens.String:
+                        key = new AST.Constant(String, token.text);
+                        lexer.expect(Colon);
+                        value = this.parseAssignment(lexer);
+                        break;
+                    case Tokens.Literal:
+                        key = new AST.Identifier(token.text);
+                        if (lexer.consume(Colon)) {
+                            value = this.parseAssignment(lexer);
+                        } else {
+                            value = key;
+                        }
+                        break;
+                    default:
+                        throw new ParserError(lexer, `Invalid key: '${token.text}'`);
+                }
+            }
 
-        } while (this.consume(Comma));
+            properties.push(new AST.Property(key, value, computed));
 
-        this.expect(RightCurlyBracket);
+        } while (lexer.consume(Comma));
 
-        return {type: AST.ObjectExpression, properties: properties};
+        return new AST.ObjectExpression(properties);
     }
 }
+

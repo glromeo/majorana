@@ -1,57 +1,69 @@
-export const NewLine = 0x000A;              //  \n
-export const Space = 0x0020;                //
-export const ExclamationMark = 0x0021;      //  !
-export const QuotationMark = 0x0022;        //  "
-export const Hashtag = 0x0023;              //  #
-export const DollarSign = 0x0024;           //  $
-export const PercentSign = 0x0025;          //  %
-export const Ampersand = 0x0026;            //  &
-export const Apostrophe = 0x0027;           //  '
-export const LeftParenthesis = 0x0028;      //  (
-export const RightParenthesis = 0x0029;     //  )
-export const Asterisk = 0x002A;             //  *
-export const PlusSign = 0x002B;             //  +
-export const Comma = 0x002C;                //  ,
-export const MinusSign = 0x002D;            //  -
-export const FullStop = 0x002E;             //  .
-export const Slash = 0x002F;                //  /
-export const DigitZero = 0x0030;            //  0
-export const DigitOne = 0x0031;             //  1
-export const DigitEight = 0x0039;           //  8
-export const DigitNine = 0x0039;            //  9
-export const Colon = 0x003A;                //  :
-export const Semicolon = 0x003B;            //  ;
-export const LessThanSign = 0x003C;         //  <
-export const EqualSign = 0x003D;            //  =
-export const GreaterThanSign = 0x003E;      //  >
-export const QuestionMark = 0x003F;         //  ?
-export const AtSign = 0x0040;               //  @
-export const CapitalA = 0x0041;             //  A
-export const CapitalB = 0x0042;             //  B
-export const CapitalE = 0x0045;             //  E
-export const CapitalF = 0x0046;             //  F
-export const CapitalU = 0x0055;             //  U
-export const CapitalX = 0x0058;             //  X
-export const CapitalZ = 0x005A;             //  Z
-export const LeftSquareBracket = 0x005B;    //  [
-export const Backslash = 0x005C;            //  \
-export const RightSquareBracket = 0x005D;   //  ]
-export const CircumflexAccent = 0x005E;     //  ^
-export const LowLine = 0x005F;              //  _   [0101 1111] To Uppercase (e.g. 0x78 & 0x5F is 0x58 )
-export const GraveAccent = 0x0060;          //  `
-export const LetterA = 0x0061;              //  a
-export const LetterB = 0x0062;              //  b
-export const LetterE = 0x0065;              //  e
-export const LetterF = 0x0066;              //  f
-export const LetterU = 0x0075;              //  u
-export const LetterX = 0x0078;              //  x
-export const LetterZ = 0x007A;              //  z
-export const LeftCurlyBracket = 0x007B;     //  {
-export const Pipe = 0x007C;                 //  |
-export const RightCurlyBracket = 0x007D;    //  }
-export const Tilde = 0x007E;                //  ~
-export const Delete = 0x007F;               //  DEL
-export const NBSP = 0x00A0;                 //  Non breaking space
+function cc(ch) {
+    return ch.charCodeAt(0);
+}
 
-export const LOWERCASE = 0b00100000;        //  CapitalE | LOWERCASE = = = LetterE
-export const UPPERCASE = ~LOWERCASE;        //  LetterE  & UPPERCASE = = = CapitalE
+export const CharCode = {
+    Tab: /*-----------------*/ cc('\t'),
+    NewLine: /*-------------*/ cc('\n'),
+    Space: /*---------------*/ cc(' '),
+    ExclamationMark: /*-----*/ cc('!'),
+    QuotationMark: /*-------*/ cc('"'),
+    Hashtag: /*-------------*/ cc('#'),
+    DollarSign: /*----------*/ cc('$'),
+    PercentSign: /*---------*/ cc('%'),
+    Ampersand: /*-----------*/ cc('&'),
+    Apostrophe: /*----------*/ cc('\''),
+    LeftParenthesis: /*-----*/ cc('('),
+    RightParenthesis: /*----*/ cc(')'),
+    Asterisk: /*------------*/ cc('*'),
+    PlusSign: /*------------*/ cc('+'),
+    Comma: /*---------------*/ cc(','),
+    MinusSign: /*-----------*/ cc('-'),
+    FullStop: /*------------*/ cc('.'),
+    Slash: /*---------------*/ cc('/'),
+    DigitZero: /*-----------*/ cc('0'),
+    DigitOne: /*------------*/ cc('1'),
+    DigitTwo: /*------------*/ cc('2'),
+    DigitThree: /*----------*/ cc('3'),
+    DigitFour: /*-----------*/ cc('4'),
+    DigitFive: /*-----------*/ cc('5'),
+    DigitSix: /*------------*/ cc('6'),
+    DigitSeven: /*----------*/ cc('7'),
+    DigitEight: /*----------*/ cc('8'),
+    DigitNine: /*-----------*/ cc('9'),
+    Colon: /*---------------*/ cc(':'),
+    Semicolon: /*-----------*/ cc(';'),
+    LessThanSign: /*--------*/ cc('<'),
+    EqualSign: /*-----------*/ cc('='),
+    GreaterThanSign: /*-----*/ cc('>'),
+    QuestionMark: /*--------*/ cc('?'),
+    AtSign: /*--------------*/ cc('@'),
+    CapitalA: /*------------*/ cc('A'),
+    CapitalB: /*------------*/ cc('B'),
+    CapitalE: /*------------*/ cc('E'),
+    CapitalF: /*------------*/ cc('F'),
+    CapitalT: /*------------*/ cc('T'),
+    CapitalU: /*------------*/ cc('U'),
+    CapitalX: /*------------*/ cc('X'),
+    CapitalZ: /*------------*/ cc('Z'),
+    LeftSquareBracket: /*---*/ cc('['),
+    Backslash: /*-----------*/ cc('\\'),
+    RightSquareBracket: /*--*/ cc(']'),
+    CircumflexAccent: /*----*/ cc('^'),
+    LowLine: /*-------------*/ cc('_'),
+    GraveAccent: /*---------*/ cc('`'),
+    LetterA: /*-------------*/ cc('a'),
+    LetterB: /*-------------*/ cc('b'),
+    LetterE: /*-------------*/ cc('e'),
+    LetterF: /*-------------*/ cc('f'),
+    LetterT: /*-------------*/ cc('t'),
+    LetterU: /*-------------*/ cc('u'),
+    LetterX: /*-------------*/ cc('x'),
+    LetterZ: /*-------------*/ cc('z'),
+    LeftCurlyBracket: /*----*/ cc('{'),
+    Pipe: /*----------------*/ cc('|'),
+    RightCurlyBracket: /*---*/ cc('}'),
+    Tilde: /*---------------*/ cc('~'),
+    Delete: /*--------------*/ 0x007F,
+    NBSP: /*----------------*/ 0x00A0
+};

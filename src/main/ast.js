@@ -1,32 +1,41 @@
-import {all, join, resolve} from "bluebird";
+import {Operators} from "./operators";
 
-const BINARY_OPERATORS = {
-    '+': (left, right) => left + right,
-    '-': (left, right) => left - right,
-    '*': (left, right) => left * right,
-    '/': (left, right) => left / right,
-    '%': (left, right) => left % right,
-    '<': (left, right) => left < right,
-    '<=': (left, right) => left <= right,
-    '>': (left, right) => left > right,
-    '>=': (left, right) => left >= right,
-    '&&': (left, right) => left && right,
-    '||': (left, right) => left || right,
+const AsyncFunction = Object.getPrototypeOf(async function () {
+}).constructor;
+
+const globalEval = eval;
+
+const BinaryExpression = (operators) => class {
+
+    constructor(operator, left, right) {
+        this.operator = operators[operator];
+        this.left = left;
+        this.right = right;
+    }
+
+    eval(self, context) {
+        return this.operator(
+            this.left.eval(self, context),
+            this.right.eval(self, context)
+        );
+    }
+
 };
 
-const UNARY_OPERATORS = {
-    '+': (argument) => +argument,
-    '-': (argument) => -argument,
-    '!': (argument) => !argument,
+const UnaryExpression = (operators) => class {
+
+    constructor(prefix, operator, argument) {
+        if (!prefix) {
+            throw TypeError("unsupported operator: postfix unary");
+        }
+        this.operator = operators[operator];
+        this.argument = argument;
+    }
+
+    eval(self, context) {
+        return this.operator(this.argument.eval(self, context));
+    }
 };
-
-const GETTER = (object, property) => object[property];
-const SETTER = (object, property, value) => object[property] = value;
-
-const TRUE = resolve(true);
-const FALSE = resolve(false);
-const NULL = resolve(null);
-const UNDEFINED = resolve(undefined);
 
 export const AST = {
 
@@ -36,20 +45,35 @@ export const AST = {
             this.expression = expression;
         }
 
-        resolve(self, context) {
-            return this.expression.resolve(self, context);
+        eval(self, context) {
+            return this.expression.eval(self, context);
         }
     },
 
     AssignmentExpression: class {
 
-        constructor(target, value) {
-            this.target = target;
-            this.value = value;
+        constructor(left, right) {
+            this.left = left;
+            this.right = right;
         }
 
-        resolve(self, context) {
-            return this.value.resolve(self, context).then(value => this.target.write(self, context, value));
+        eval(self, context) {
+            return this.left.write(self, context, this.right.eval(self, context));
+        }
+    },
+
+    CommaExpression: class {
+
+        constructor(expressions) {
+            this.expressions = expressions;
+        }
+
+        eval(self, context) {
+            let value;
+            for (const expression of this.expressions) {
+                value = expression.eval(self, context);
+            }
+            return value;
         }
     },
 
@@ -61,63 +85,51 @@ export const AST = {
             this.alternate = alternate;
         }
 
-        resolve(self, context) {
-            return this.test.resolve(self, context).then(test => {
-                if (test) {
-                    return this.consequent.resolve(self, context);
-                } else {
-                    return this.alternate.resolve(self, context);
-                }
-            });
-        }
-    },
-
-    BinaryExpression: class {
-
-        constructor(operator, left, right) {
-            this.operator = operator;
-            this.left = left;
-            this.right = right;
-        }
-
-        resolve(self, context) {
-            return join(this.left.resolve(self, context), this.right.resolve(self, context), BINARY_OPERATORS[operator]);
-        }
-    },
-
-    UnaryExpression: class {
-
-        constructor(prefix, argument) {
-            if (!prefix) {
-                throw TypeError("unsupported operator: postfix unary");
+        async eval(self, context) {
+            if (await this.test.eval(self, context)) {
+                return this.consequent.eval(self, context);
+            } else {
+                return this.alternate.eval(self, context);
             }
-            this.argument = argument;
-        }
-
-        resolve(self, context) {
-            return this.argument.resolve(self, context).then(UNARY_OPERATORS[operator]);
         }
     },
+
+    LogicalExpression: BinaryExpression(Operators.Logical),
+
+    EqualityExpression: BinaryExpression(Operators.Equality),
+
+    RelationalExpression: BinaryExpression(Operators.Relational),
+
+    AdditiveExpression: BinaryExpression(Operators.Additive),
+
+    MultiplicativeExpression: BinaryExpression(Operators.Multiplicative),
+
+    UnaryExpression: UnaryExpression(Operators.Unary),
 
     Literals: {
-        'true': TRUE,
-        'false': FALSE,
-        'null': NULL,
-        'undefined': UNDEFINED
+        'true': {eval: () => true},
+        'false': {eval: () => false},
+        'null': {eval: () => null},
+        'undefined': {eval: () => undefined},
+        'this': {eval: self => self}
     },
 
     Identifier: class {
 
-        constructor(name) {
-            this.name = name;
+        constructor(text) {
+            this.name = text;
         }
 
-        resolve(self, context) {
-            return resolve(context[this.name]);
+        eval(self, context) {
+            return context[this.name];
         }
 
-        write(self, context, value) {
-            return resolve(context[this.name] = value);
+        async write(self, context, value) {
+            return context[this.name] = await value;
+        }
+
+        symbol() {
+            return this.name;
         }
     },
 
@@ -128,61 +140,103 @@ export const AST = {
             this.text = text;
         }
 
-        resolve() {
-            return resolve(this.type(this.text));
+        eval() {
+            return globalEval(this.text);
         }
-    },
 
-    This: {
-
-        resolve(self) {
-            return resolve(self);
-        },
-
-        write(self, context, value) {
-            return resolve(self[this.name] = value);
+        symbol() {
+            return this.text;
         }
     },
 
     CallExpression: class {
 
-        constructor(callee, args) {
+        constructor(callee, parameters) {
             this.callee = callee;
-            this.args = args;
+            this.parameters = parameters;
         }
 
-        resolve(self, context) {
-            return this.callee.resolve(self, context).then(callee => all(this.args).then(args => {
-                return callee.apply(context[$this], args);
-            }));
+        async eval(self, context) {
+            const callee = await this.callee.eval(self, context), args = [];
+            for (const parameter of this.parameters) {
+                args.push(await parameter.eval(self, context));
+            }
+            return callee.apply(self, args);
         }
     },
 
     MemberExpression: class {
 
-        constructor(object, property, computed) {
+        constructor(object, member, computed) {
             this.object = object;
-            this.property = property;
+            this.member = member;
             this.computed = computed;
         }
 
-        resolve(self, context) {
+        async eval(self, context) {
+            const object = await this.object.eval(self, context);
             if (this.computed) {
-                return join(this.object.resolve(self, context), this.property.resolve(self, context), GETTER);
+                return object[context[this.member.symbol()]];
             } else {
-                return join(this.object.resolve(self, context), this.property.value, GETTER);
+                return object[this.member.symbol()];
             }
         }
 
-        write(self, context, value) {
+        async write(self, context, value) {
+            const object = await this.object.eval(self, context);
             if (this.computed) {
-                return join(this.object.resolve(self, context), this.property.resolve(self, context), value, SETTER);
+                return object[context[this.member.symbol()]] = await value;
             } else {
-                return join(this.object.resolve(self, context), this.property.value, value, SETTER);
+                return object[this.member.symbol()] = await value;
             }
         }
     },
 
-    ArrayExpression: null,
-    ObjectExpression: null
+    ArrayExpression: class {
+
+        constructor(elements) {
+            this.elements = elements;
+        }
+
+        async eval(self, context) {
+            let v = 0, value = new Array(this.elements.length);
+            for (const element of this.elements) {
+                value[v++] = await element.eval(self, context);
+            }
+            return value;
+        }
+    },
+
+    Property: class {
+        constructor(key, value, computed) {
+            this.key = key;
+            this.value = value;
+            this.computed = computed;
+        }
+
+        eval(self, context) {
+            return this.computed ? this.value.eval(self, context).then(value => {
+                return this.key.eval(self, context).then(key => {
+                    return {key, value};
+                });
+            }) : this.value.eval(self, context);
+        }
+    },
+
+    ObjectExpression: class {
+
+        constructor(properties) {
+            this.properties = properties;
+        }
+
+        async eval(self, context) {
+            const value = {};
+            for (const property of this.properties) if (property.computed) {
+                value[await property.key.eval(self, context)] = await property.value.eval(self, context);
+            } else {
+                value[property.key.symbol()] = await property.value.eval(self, context);
+            }
+            return value;
+        }
+    }
 };

@@ -22,9 +22,27 @@ suite
         }
     })
 
+    .add('Method Inline', function () {
+        for (let n=0; n<1000; n++) try {
+            ({ m(n) { s = this.toString() + n; } }).m(n++);
+        } catch(e) {
+            throw e;
+        }
+    })
+
     .add('Call', function () {
         for (let n=0; n<1000; n++) try {
-            t.call(n++);
+            t.call(o, n++);
+        } catch(e) {
+            throw e;
+        }
+    })
+
+    .add('Call Inline', function () {
+        for (let n=0; n<1000; n++) try {
+            (function t(n) {
+                s = this.toString() + n;
+            }).call(o, n++);
         } catch(e) {
             throw e;
         }
@@ -33,6 +51,22 @@ suite
     .add('Bind', function () {
         for (let n=0; n<1000; n++) try {
             b(n++);
+        } catch(e) {
+            throw e;
+        }
+    })
+
+    .add('Bind Inline', function () {
+        for (let n=0; n<1000; n++) try {
+            (t.bind(o))(n++);
+        } catch(e) {
+            throw e;
+        }
+    })
+
+    .add('Bind Diamond', function () {
+        for (let n=0; n<1000; n++) try {
+            (o => t.call(o, n++))(o);
         } catch(e) {
             throw e;
         }

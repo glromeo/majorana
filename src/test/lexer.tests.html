@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Mocha Tests</title>
+    <base href="./">
     <link href="https://cdn.rawgit.com/mochajs/mocha/2.2.5/mocha.css" rel="stylesheet"/>
 </head>
 <body>
@@ -15,13 +16,15 @@
 
 <script>mocha.setup('bdd')</script>
 
-<script src="../node_modules/systemjs/dist/system.js"></script>
+<script src="node_modules/systemjs/dist/system.js"></script>
 <script type="text/javascript">
 
+    const {System, mocha} = window;
+
     System.config({
-        baseURL: '../node_modules',
+        baseURL: 'node_modules',
         meta: {
-            'lib/*.js': {
+            'src/*.js': {
                 babelOptions: {
                     "sourceMaps": true,
                     "plugins": [
@@ -32,6 +35,7 @@
             }
         },
         map: {
+            'lib': './src', // ...comment this out to use the actual lib folder instead of the systemjs plugin
             'plugin-babel': 'systemjs-plugin-babel/plugin-babel.js',
             'systemjs-babel-build': 'systemjs-plugin-babel/systemjs-babel-browser.js',
             "transform-decorators-legacy": "babel-plugin-transform-decorators-legacy/lib/index.js",
@@ -43,9 +47,13 @@
         ],
     });
 
-    System.import("../main/lexer.js").then(module => {
+    Promise.all([
 
-        const {Lexer, Tokens} = module;
+        System.import("lib/main/lexer.js"),
+        System.import("lib/main/tokens.js")
+
+    ]).then(function ([{Lexer}, {Tokens}]) {
+
         const {assert} = chai;
 
         describe("Lexer Tests", function () {
@@ -70,14 +78,13 @@
 
                 let t = new Stopwatch().start();
 
-                for (let token of lexer) {
-                    if (lexer.line == 1000) break;
+                for (let token of lexer) if (token.position > 40000) {
+                    break;
                 }
 
                 const halfway = t.stop()['ms'];
                 assert.isBelow(halfway, 16);
-                assert.equal(lexer.line, 1000);
-                assert.equal(lexer.column, 22);
+                assert.deepEqual(lexer.cursor(), { line: 1019, column: 33 });
 
                 console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
 
@@ -87,8 +94,7 @@
 
                 const stop = t.stop()['ms'];
                 assert.isBelow(stop, 8);
-                assert.equal(lexer.line, 2068);
-                assert.equal(lexer.column, 2);
+                assert.deepEqual(lexer.cursor(), { line: 2038, column: 6 });
 
                 console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));
             });

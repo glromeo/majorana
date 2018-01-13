@@ -9,3 +9,12 @@ export const Tokens = {
     Symbol:         Symbol("Symbol"),
     This:           Symbol("This")
 };
+
+export const Symbols = {
+    equality: ['===', '==', '!==', '!='],
+    relational: ['<', '<=', '>', '>='],
+    additive: ["+", "-"],
+    multiplicative: ["*", "/", "%"],
+    unary: ["+", "-", "!"],
+    assignment: ["="]
+};

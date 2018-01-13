@@ -1,133 +1,152 @@
-// const Aigle = require("aigle");
-const Bluebird = require("bluebird");
 const Benchmark = require('benchmark');
 
 const suite = new Benchmark.Suite();
 
-let c = 0;
-
-class Clazz {
-    constructor(n1, n3, n5, n7, n9, n11, n13, n15, n17, n19) {
-        this.p0 = n1;
-        this.p2 = n3;
-        this.p4 = n5;
-        this.p6 = n7;
-        this.p8 = n9;
-        this.p10 = n11;
-        this.p12 = n13;
-        this.p14 = n15;
-        this.p16 = n17;
-        this.p18 = n19;
+function ADD(l, r) {
+    return function (ctx) {
+        return l(ctx) + r(ctx);
     }
 }
 
-function F(n1, n3, n5, n7, n9, n11, n13, n15, n17, n19) {
-    this.p0 = n1;
-    this.p2 = n3;
-    this.p4 = n5;
-    this.p6 = n7;
-    this.p8 = n9;
-    this.p10 = n11;
-    this.p12 = n13;
-    this.p14 = n15;
-    this.p16 = n17;
-    this.p18 = n19;
+function MUL(l, r) {
+    return function (ctx) {
+        return l(ctx) * r(ctx);
+    }
 }
 
-let F0 = function () {
+function NUM(txt) {
+    return function (ctx) {
+        return Number(txt);
+    }
+}
 
-};
+function CTX(txt) {
+    return function (ctx) {
+        return ctx[txt];
+    }
+}
+
+
+function Add(l, r) {
+    this.l = l;
+    this.r = r;
+    this.invoke = function (ctx) {
+        return this.l.invoke(ctx) + this.r.invoke(ctx);
+    }
+}
+
+function Mul(l, r) {
+    this.l = l;
+    this.r = r;
+    this.invoke = function (ctx) {
+        return this.l.invoke(ctx) * this.r.invoke(ctx);
+    }
+}
+
+function Num(txt) {
+    this.txt = txt;
+    this.invoke = function (ctx) {
+        return Number(this.txt);
+    }
+}
+
+function Ctx(txt) {
+    this.txt = txt;
+    this.invoke = function (ctx) {
+        return ctx[this.txt];
+    }
+}
+
+
+class CAdd {
+    constructor(l, r) {
+        this.l = l;
+        this.r = r;
+    }
+
+    eval(ctx) {
+        return this.l.eval(ctx) + this.r.eval(ctx);
+    }
+}
+
+class CMul {
+    constructor(l, r) {
+        this.l = l;
+        this.r = r;
+    }
+
+    eval(ctx) {
+        return this.l.eval(ctx) * this.r.eval(ctx);
+    }
+}
+
+class CNum {
+    constructor(txt) {
+        this.txt = txt;
+    }
+
+    eval(ctx) {
+        return Number(this.txt);
+    }
+}
+
+class CCtx {
+    constructor(txt) {
+        this.txt = txt;
+    }
+
+    eval(ctx) {
+        return ctx[this.txt];
+    }
+}
+
+
+let r = 0;
 
 suite
 
-    .add('{}', function () {
-        for (let i = 0; i < 1000; i++) {
-            let obj = {
-                p0: i + 1,
-                p2: i + 3,
-                p4: i + 5,
-                p6: i + 7,
-                p8: i + 9,
-                p10: i + 11,
-                p12: i + 13,
-                p14: i + 15,
-                p16: i + 17,
-                p18: i + 19,
-            };
-
-            obj.p0 = obj.p18;
-            obj.p18 = obj.p8 + obj.p9;
+    .add('closure', function () {
+        for (let i = 0; i < 10; i++) {
+            let e = MUL(ADD(CTX('X'), NUM('10')), ADD(CTX('Y'), NUM('1000')));
+            r = e({x: 1, y: e({x: r, y: i})});
         }
     })
 
-    .add('create', function () {
-        for (let i = 0; i < 1000; i++) {
-            let obj = Object.create(F0);
-
-            obj.p0 = i + 1;
-            obj.p2 = i + 3;
-            obj.p4 = i + 5;
-            obj.p6 = i + 7;
-            obj.p8 = i + 9;
-            obj.p10 = i + 11;
-            obj.p12 = i + 13;
-            obj.p14 = i + 15;
-            obj.p16 = i + 17;
-            obj.p18 = i + 1;
-
-            obj.p0 = obj.p18;
-            obj.p18 = obj.p8 + obj.p9;
+    .add('function constructors', function () {
+        try {
+            for (let i = 0; i < 10; i++) {
+                let e = new Mul(new Add(new Ctx('X'), new Num('10')), new Add(new Ctx('Y'), new Num('1000')));
+                r = e.invoke({x: 1, y: e.invoke({x: r, y: i})});
+            }
+        } catch (e) {
+            console.log(e);
+            throw e;
         }
     })
 
-    .add('Function', function () {
-        for (let i = 0; i < 1000; i++) {
-            let obj = new F(
-                i + 1,
-                i + 3,
-                i + 5,
-                i + 7,
-                i + 9,
-                i + 11,
-                i + 13,
-                i + 15,
-                i + 17,
-                i + 19,
-            );
-            obj.p0 = obj.p18;
-            obj.p18 = obj.p8 + obj.p9;
+    .add('classes', function () {
+        try {
+            for (let i = 0; i < 10; i++) {
+                let e = new CMul(new CAdd(new CCtx('X'), new CNum('10')), new CAdd(new CCtx('Y'), new CNum('1000')));
+                r = e.eval({x: 1, y: e.eval({x: r, y: i})});
+            }
+        } catch (e) {
+            console.log(e);
+            throw e;
         }
     })
-
-    .add('Class', function () {
-        for (let i = 0; i < 1000; i++) {
-            let obj = new F(
-                i + 1,
-                i + 3,
-                i + 5,
-                i + 7,
-                i + 9,
-                i + 11,
-                i + 13,
-                i + 15,
-                i + 17,
-                i + 19,
-            );
-            obj.p0 = obj.p18;
-            obj.p18 = obj.p8 + obj.p9;
-        }
-    })
-
 
     .on('cycle', function (event) {
         console.log(String(event.target))
     })
 
     .on('complete', function () {
-        const faster = this.filter('fastest')[0]
-        const slower = this.filter('slowest')[0]
-        console.log('--------------------------------------------------')
-        console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) - 100}%`)
+        const faster = this.filter('fastest')[0];
+        const slower = this.filter('slowest')[0];
+        if (faster && slower) {
+            console.log('--------------------------------------------------');
+            console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) - 100}%`)
+        }
     })
 
     .run({'async': true});

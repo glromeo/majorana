@@ -1,41 +1,35 @@
 const Benchmark = require('benchmark');
+const {assert} = require('chai');
 
 const suite = new Benchmark.Suite()
 
-let s = "";
+let x = 0;
 
-function t(n) {
-    s = this.toString() + n;
-}
-
-let o = { m(n) { s = this.toString() + n; } };
-
-let b = t.bind(o);
+let bf = function (b) {
+    return this + b;
+};
 
 suite
 
-    .add('Method', function () {
-        for (let n=0; n<1000; n++) try {
-            o.m(n++);
-        } catch(e) {
-            throw e;
+    .add('Closure', function () {
+        for (let n=0; n<100; n++) {
+            function f(a) {
+                f = function (b) {
+                    return a + b;
+                }
+            }
+            f(n);
+            x = f(-n);
         }
-    })
-
-    .add('Call', function () {
-        for (let n=0; n<1000; n++) try {
-            t.call(o, n++);
-        } catch(e) {
-            throw e;
-        }
+        assert.equal(x, 0);
     })
 
     .add('Bind', function () {
-        for (let n=0; n<1000; n++) try {
-            b(n++);
-        } catch(e) {
-            throw e;
+        for (let n=0; n<100; n++) {
+            let f = bf.bind(n);
+            x = f(-n);
         }
+        assert.equal(x, 0);
     })
 
     .on('cycle', function (event) {

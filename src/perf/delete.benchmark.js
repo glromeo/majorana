@@ -2,40 +2,34 @@ const Benchmark = require('benchmark');
 
 const suite = new Benchmark.Suite()
 
-let s = "";
+let o = {
+    p: new Date()
+};
 
-function t(n) {
-    s = this.toString() + n;
+function restore() {
+    o.p = new Date();
 }
-
-let o = { m(n) { s = this.toString() + n; } };
-
-let b = t.bind(o);
 
 suite
 
-    .add('Method', function () {
-        for (let n=0; n<1000; n++) try {
-            o.m(n++);
-        } catch(e) {
-            throw e;
-        }
+    .add('delete', function () {
+        delete o.p;
+        o.p || restore();
     })
 
-    .add('Call', function () {
-        for (let n=0; n<1000; n++) try {
-            t.call(o, n++);
-        } catch(e) {
-            throw e;
-        }
+    .add('set null', function () {
+        o.p = null;
+        o.p || restore();
     })
 
-    .add('Bind', function () {
-        for (let n=0; n<1000; n++) try {
-            b(n++);
-        } catch(e) {
-            throw e;
-        }
+    .add('set undefined', function () {
+        o.p = undefined;
+        o.p || restore();
+    })
+
+    .add('set false', function () {
+        o.p = false;
+        o.p || restore();
     })
 
     .on('cycle', function (event) {
