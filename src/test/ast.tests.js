@@ -2,9 +2,6 @@ import {describe, it} from "mocha";
 import {assert} from "chai";
 import {Parser} from "../main/parser.js";
 import {Lexer} from "../main/lexer.js";
-import {AST} from "../main/ast.js";
-
-Lexer.stripAnsi = true;
 
 describe("Parser and AST Tests", function () {
 

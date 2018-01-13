@@ -5,8 +5,6 @@ import {Lexer} from "../main/lexer.js";
 import {AST} from "../main/ast.js";
 import {Operators} from "../main/operators";
 
-Lexer.stripAnsi = true;
-
 describe("Parser Tests", function () {
 
     beforeEach(function () {

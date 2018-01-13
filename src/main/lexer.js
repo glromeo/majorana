@@ -1,9 +1,6 @@
 import {CharCode} from "./charcodes";
 import {Symbols, Tokens} from "./language";
 
-import chalk from "chalk";
-import stripAnsi from "strip-ansi";
-
 const {
     NewLine, Tab, Space, QuotationMark, DollarSign, Apostrophe, Asterisk, PlusSign, MinusSign, FullStop, Slash,
     DigitZero, DigitOne, DigitEight, DigitNine, CapitalA, CapitalB, CapitalE, CapitalF, CapitalX, CapitalZ,
@@ -70,17 +67,10 @@ export class Lexer {
 
         let out = message;
 
-        if (Lexer.debug) out = "Given: `"
-            + chalk.underline.green(this.source.substring(0, position))
-            + chalk.red(this.source.substring(position))
-            + "` " + out;
+        if (Lexer.debug) out = "Given: `" + this.source + "` " + out;
 
         const {line, column} = Lexer.cursor(this.source, position);
-        out += ", at line: " + chalk.green(line) + ", column: " + chalk.blue(column) + ".";
-
-        if (Lexer.stripAnsi) {
-            out = stripAnsi(out);
-        }
+        out += ", at line: " + line + ", column: " + column + ".";
 
         const error = new Error(out);
         error.stack = error.stack.split("\n").filter((line, index) => index > 1).join("\n");
@@ -278,7 +268,7 @@ export class Lexer {
         } else {
             let expected = String.fromCharCode(cc);
             let actual = this.source.charAt(this.position);
-            this.error(`Expected ${ chalk.blue(expected) } but was ${ chalk.red(actual) }`);
+            this.error(`Expected ${ expected } but was ${ actual }`);
         }
     }
 
