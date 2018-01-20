@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <base href="/github.com/majorana/">
+</head>
 <body>
-<script src="../node_modules/systemjs/dist/system.js"></script>
+<script src="node_modules/systemjs/dist/system.js"></script>
 <script type="text/javascript">
 
     System.config({
-        baseURL: '../node_modules',
+        baseURL: 'node_modules',
         meta: {
             'lib/*.js': {
                 babelOptions: {
@@ -25,11 +28,11 @@
         },
         transpiler: 'plugin-babel',
         packageConfigPaths: [
-            '/node_modules/*/package.json'
-        ],
+            'node_modules/*/package.json'
+        ]
     });
 
-    System.import("../main/lexer.js").then(module => {
+    System.import("./src/main/lexer.js").then(module => {
 
         const Lexer = module.Lexer;
 
@@ -47,7 +50,7 @@
             }
         }
 
-        fetch("../test/lexer.fixture.js").then(response => response.text()).then(fixture => {
+        fetch("./src/test/lexer.fixture.js").then(response => response.text()).then(fixture => {
 
             const lexer = new Lexer(fixture);
 

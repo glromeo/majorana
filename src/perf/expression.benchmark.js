@@ -1,188 +1,300 @@
-// const Aigle = require("aigle");
-const Bluebird = require("bluebird");
-const Benchmark = require('benchmark');
+import Benchmark from "benchmark";
+import {Expression} from "../main/expression.js";
 
-let c = 0, twenty = 20, two = 2;
+const html = `<!doctype html>
+<html ng-app="test-app">
+<head>
+    <meta charset="utf-8">
+    <title>JSDOM Html Page Title</title>
+</head>
+<body></body>
+</html>`;
 
-function finalizer(done, value) {
-    return this.then(done.bind(value));
+
+const jsdom = require("jsdom");
+const dom = new jsdom.JSDOM(html);
+const window = dom.window;
+const document = window.document;
+
+window.console = global.console;
+
+function hackConstructor(descriptor) {
+    // const type = descriptor.value;
+    // if (typeof type === 'function' && type.toString().indexOf('Illegal constructor') > 0) {
+    //     descriptor.value = new Proxy(descriptor.value, {
+    //         construct: function(target, argumentsList, newTarget) {
+    //             return Object.create(target.prototype);
+    //         }
+    //     });
+    // }
+    return descriptor;
 }
 
-function join(left, right, done) {
-    return left.then(finalizer.bind(right, done))
-}
+Object.getOwnPropertyNames(window)
+    .filter(property => !global.hasOwnProperty(property))
+    .forEach(property => {
+        const descriptor = hackConstructor(Object.getOwnPropertyDescriptor(window, property));
+        Object.defineProperty(window, property, descriptor);
+        Object.defineProperty(global, property, descriptor);
+    });
 
-function sum(x, y, z) {
-    return x + y + z;
-}
+Object.defineProperty(global, 'window', {
+    value: new Proxy(window, {
+        set(target, property, value) {
+            target[property] = value;
+            if (!global.hasOwnProperty(property)) {
+                global[property] = value;
+            }
+            return true;
+        },
+        defineProperty(target, property, descriptor) {
+            Object.defineProperty(target, property, descriptor);
+            if (!global.hasOwnProperty(property)) {
+                Object.defineProperty(global, property, descriptor);
+            }
+            return true;
+        }
+    })
+});
 
-function x(v, i) {
-    if (--this.pending) {
-        this[i] = v;
-    } else {
-        this[i] = v;
-        this.resolve(this[0] + this[1] + this[2]);
+global = new Proxy(global, {
+    set(target, property, value) {
+        target[property] = value;
+        if (!window.hasOwnProperty(property)) {
+            window[property] = value;
+        }
+        return true;
+    },
+    defineProperty(target, property, descriptor) {
+        Object.defineProperty(target, property, descriptor);
+        if (!window.hasOwnProperty(property)) {
+            Object.defineProperty(window, property, descriptor);
+        }
+        return true;
     }
-}
+});
 
-// Unwrappd x 634,703 ops/sec ±0.55% (81 runs sampled)
-// Diamonds x 648,699 ops/sec ±0.64% (81 runs sampled)
-// --------------------------------------------------
-// Diamonds by 2%
-// .add('Bind', {
-//     defer: true,
-//     fn: function (deferred) {
-//         new Promise(function (resolve) {
-//             let o = new Array(3);
-//             o.resolve = resolve;
-//             o.pending = 3;
-//             Promise.resolve(1).then(x.bind(o, 0));
-//             Promise.resolve(2).then(x.bind(o, 1));
-//             Promise.resolve(3).then(x.bind(o, 2));
-//         }).then(sum => {
-//             setTimeout()(() => deferred.resolve());
-//         });
-//     }
-// })
-// .add('Diamonds', {
-//     defer: true,
-//     fn: function (deferred) {
-//         Promise.resolve(1).then(x => {
-//             Promise.resolve(2).then(y => {
-//                 Promise.resolve(3).then(z => {
-//                     return sum(x, y, z);
-//                 }).then(() => {
-//                     setTimeout()(() => deferred.resolve());
-//                 });
-//             });
-//         });
-//     }
-// })
+let angular = require("angular");
 
-new Benchmark.Suite()
+let testApp = angular.module("test-app", []).run(["$rootScope", "$parse", function ($rootScope, $parse) {
 
-    // .add('Promise', {
-    //     defer: true,
-    //     fn: function (deferred) {
-    //         Promise.resolve(20).then(x => {
-    //             Promise.resolve(20).then(y => {
-    //                 Promise.resolve(2).then(z => {
-    //                     return sum(x, y, z);
-    //                 }).then(() => {
-    //                     deferred.resolve();
-    //                 });
-    //             });
-    //         });
-    //     }
-    // })
-    //
-    // .add('Async/Await', {
-    //     defer: true,
-    //     fn: async function (deferred) {
-    //         let x = await Promise.resolve(20);
-    //         let y = await Promise.resolve(20);
-    //         let z = await Promise.resolve(2);
-    //         await Promise.resolve(sum(x, y, z));
-    //         deferred.resolve();
-    //     }
-    // })
+        const AsyncFunction = Object.getPrototypeOf(async () => {
+        }).constructor;
 
-    .add('Async/Await (no promise)', {
-        defer: true,
-        fn: async function (deferred) {
-            let x = await twenty;
-            let y = await twenty;
-            let z = await two;
-            await sum(x, y, z);
-            deferred.resolve();
-        }
-    })
+        new Benchmark.Suite()
 
-    .add('Async/Await (no promise at all)', {
-        defer: true,
-        fn: async function (deferred) {
-            let x = twenty instanceof Promise ? await twenty : twenty;
-            let y = twenty instanceof Promise ? await twenty : twenty;
-            let z = two instanceof Promise ? await two : two;
-            let s = sum(x, y, z);
-            if (s instanceof Promise) {
-                s = await s;
-            }
-            process.nextTick(function () {
-                deferred.resolve();
-            })
-        }
-    })
-
-    .add('Async/Await (no promise at all sync)', {
-        defer: false,
-        fn: async function () {
-            let x = twenty instanceof Promise ? await twenty : twenty;
-            let y = twenty instanceof Promise ? await twenty : twenty;
-            let z = two instanceof Promise ? await two : two;
-            let s = sum(x, y, z);
-            if (s instanceof Promise) {
-                s = await s;
-            }
-        }
-    })
-
-    // Coroutine x 6,536 ops/sec ±2.10% (75 runs sampled)
-    //
-    // .add('Coroutine', {
-    //     defer: true,
-    //     fn: async function (deferred) {
-    //         let cs = Bluebird.coroutine(function* (x, y, z) {
-    //             yield Promise.resolve(x);
-    //             yield Promise.resolve(y);
-    //             yield Promise.resolve(z);
-    //             return sum(x, y, z);
-    //         });
-    //         cs(10, 30, 2).then(() => {
-    //                         process.nextTick(()=>deferred.resolve());
-
-    //         });
-    //     }
-    // })
-
-    .add('Bluebird', {
-        defer: true,
-        fn: function (deferred) {
-            Bluebird.resolve(20).then(x => {
-                Bluebird.resolve(20).then(y => {
-                    Bluebird.resolve(2).then(z => {
-                        return sum(x, y, z);
-                    }).then(() => {
-                        deferred.resolve();
+        // .add('Async/Await', {
+        //     defer: true,
+        //     fn: async function (deferred) {
+        //         await new AsyncFunction("cc", `cc.w = {
+        //         "v": 5
+        //     },[
+        //         cc.w.v,
+        //         /* simple comment */
+        //         0x10 + 10e10,
+        //         6 * 6,
+        //         (110-10)/await this.x,
+        //         this.yyy().xxx,
+        //         cc.zzz().xxx,
+        //         /* multi
+        //            line
+        //            comment */
+        //         [await cc.x, await cc.y, await cc.z].concat(1, 2, 3),
+        //         { "r": cc.rnd(), 10: cc.x, ["y"]: cc.y, 30: [cc.z] }['y'],
+        //         cc.a.b.c.d.e.f(1,2,3,4,5)
+        //         ]
+        //     `).call({
+        //             x: 10,
+        //             yyy() {
+        //                 return this;
+        //             },
+        //             xxx: 'xxx'
+        //         }, {
+        //             x: Promise.resolve(10), y: Promise.resolve(20), z: Promise.resolve(30),
+        //             rnd() {
+        //                 return Promise.resolve(Math.random());
+        //             },
+        //             zzz() {
+        //                 return this;
+        //             },
+        //             a: {
+        //                 b: {
+        //                     c: {
+        //                         d: {
+        //                             e: {
+        //                                 f() {
+        //                                     return Array.from(arguments);
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         });
+        //         deferred.resolve();
+        //     }
+        // })
+        //
+            .add('AngularJS', {
+                defer: true,
+                fn: function (deferred) {
+                    // language=ECMAScript 6
+                    let getter = $parse(`
+                    [
+                        {
+                            "v": ${Math.random()}
+                        }.v,
+                        16 + 10e10,
+                        6 * 6,
+                        (110-10)/this.x,
+                        this.yyy().xxx,
+                        zzz().xxx,
+                        [x, y, z].concat(1, 2, 3),
+                        { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
+                        a.b.c.d.e.f(1,2,3,4,5)
+                    ]
+                `)({
+                        x: 10, y: 20, z: 30,
+                        rnd() {
+                            return Math.random();
+                        },
+                        zzz() {
+                            return this;
+                        },
+                        a: {
+                            b: {
+                                c: {
+                                    d: {
+                                        e: {
+                                            f() {
+                                                return Array.from(arguments);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }, {
+                        x: 10,
+                        yyy() {
+                            return this;
+                        },
+                        xxx: 'xxx'
                     });
-                });
-            });
-        }
-    })
+                    process.nextTick(() => deferred.resolve());
+                }
+            })
 
-    //
-    // .add('Bluebird (Join)', {
-    //     defer: true,
-    //     fn: function (deferred) {
-    //         Bluebird.join(Bluebird.resolve(20), Bluebird.resolve(20), Bluebird.resolve(2))
-    //             .then(sum)
-    //             .then(() => {
-    //                 // setTimeout(() => deferred.resolve());
-    //                 process.nextTick(() => deferred.resolve());
-    //
-    //             });
-    //     }
-    // })
+            .add('Lexer & Parser & Interpreter (fair)', {
+                defer: true,
+                fn: function (deferred) {
+                    new Expression(`[
+                        {
+                            "v": ${Math.random()}
+                        }.v,
+                        16 + 10e10,
+                        6 * 6,
+                        (110-10)/this.x,
+                        this.yyy().xxx,
+                        zzz().xxx,
+                        [x, y, z].concat(1, 2, 3),
+                        { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
+                        a.b.c.d.e.f(1,2,3,4,5)
+                    ]`).invoke({
+                        x: 10,
+                        yyy() {
+                            return this;
+                        },
+                        xxx: 'xxx'
+                    }, {
+                        x: 10, y: 20, z: 30,
+                        rnd() {
+                            return Math.random();
+                        },
+                        zzz() {
+                            return this;
+                        },
+                        a: {
+                            b: {
+                                c: {
+                                    d: {
+                                        e: {
+                                            f() {
+                                                return Array.from(arguments);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }).then(() => deferred.resolve())
+                }
+            })
 
-    .on('cycle', function (event) {
-        console.log(String(event.target))
-    })
+            .add('Lexer & Parser & Interpreter', {
+                defer: true,
+                fn: async function (deferred) {
+                    await new Expression(`w = {
+                "v": 5
+            },[
+                w.v,
+                /* simple comment */  
+                0x10 + 10e10, 
+                6 * 6,
+                (110-10)/this.x,
+                this.yyy().xxx,
+                zzz().xxx,
+                /* multi 
+                   line
+                   comment */ 
+                [x, y, z].concat(1, 2, 3), 
+                { "r": rnd(), x, ["y"]: y, 30: [z] }['y'],
+                a.b.c.d.e.f(1,2,3,4,5)
+                ]
+            `).invoke({
+                        x: 10,
+                        yyy() {
+                            return this;
+                        },
+                        xxx: 'xxx'
+                    }, {
+                        x: Promise.resolve(10), y: Promise.resolve(20), z: Promise.resolve(30),
+                        rnd() {
+                            return Promise.resolve(Math.random());
+                        },
+                        zzz() {
+                            return this;
+                        },
+                        a: {
+                            b: {
+                                c: {
+                                    d: {
+                                        e: {
+                                            f() {
+                                                return Array.from(arguments);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    deferred.resolve();
+                }
+            })
 
-    .on('complete', function () {
-        const faster = this.filter('fastest')[0];
-        const slower = this.filter('slowest')[0];
-        console.log('--------------------------------------------------');
-        console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) - 100}%`);
-    })
+            .on('cycle', function (event) {
+                console.log(String(event.target))
+            })
 
-    .run({'async': true});
+            .on('complete', function () {
+                const faster = this.filter('fastest')[0];
+                const slower = this.filter('slowest')[0];
+                console.log('--------------------------------------------------');
+                console.log(`${faster.name} by ${Math.round(100 * faster.hz / slower.hz) - 100}%`);
+            })
+
+            .run({'async': true});
+    }])
+;
+

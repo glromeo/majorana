@@ -9,32 +9,32 @@
 
     System.config({
         baseURL: 'node_modules',
-        meta: {
-            'lib/*.js': {
-                babelOptions: {
-                    "sourceMaps": true,
-                    "plugins": [
-                        "transform-decorators-legacy",
-                        "transform-es2015-modules-systemjs"
-                    ]
-                }
-            }
-        },
-        map: {
-            'plugin-babel': 'systemjs-plugin-babel/plugin-babel.js',
-            'systemjs-babel-build': 'systemjs-plugin-babel/systemjs-babel-browser.js',
-            "transform-decorators-legacy": "babel-plugin-transform-decorators-legacy/lib/index.js",
-            "transform-es2015-modules-systemjs": "babel-plugin-transform-es2015-modules-systemjs/lib/index.js"
-        },
-        transpiler: 'plugin-babel',
+        // meta: {
+        //     'lib/*.js': {
+        //         babelOptions: {
+        //             "sourceMaps": true,
+        //             "plugins": [
+        //                 "transform-decorators-legacy",
+        //                 "transform-es2015-modules-systemjs"
+        //             ]
+        //         }
+        //     }
+        // },
+        // map: {
+        //     'plugin-babel': 'systemjs-plugin-babel/plugin-babel.js',
+        //     'systemjs-babel-build': 'systemjs-plugin-babel/systemjs-babel-browser.js',
+        //     "transform-decorators-legacy": "babel-plugin-transform-decorators-legacy/lib/index.js",
+        //     "transform-es2015-modules-systemjs": "babel-plugin-transform-es2015-modules-systemjs/lib/index.js"
+        // },
+        // transpiler: 'plugin-babel',
         packageConfigPaths: [
             'node_modules/*/package.json'
         ]
     });
 
-    System.import("./src/main/lexer.js").then(module => {
+    System.import("./lib/main/expression.js").then(async module => {
 
-        const Lexer = module.Lexer;
+        const {Expression} = module;
 
         class Stopwatch {
 
@@ -50,29 +50,57 @@
             }
         }
 
-        fetch("./src/test/lexer.fixture.js").then(response => response.text()).then(fixture => {
+        let t = new Stopwatch().start();
+        console.log("started");
 
-            const lexer = new Lexer(fixture);
+        for (var i = 0; i < 100000; i++) {
+            new Expression(`w = {
+                "v": ${i}
+            },[
+                w.v,
+                /* simple comment */
+                0x10 + 10e10,
+                6 * 6,
+                (110-10)/this.x,
+                this.yyy().xxx,
+                zzz().xxx,
+                /* multi
+                   line
+                   comment */
+                [x, y, z].concat(1, 2, 3),
+                { "r": rnd(), x, ["y"]: y, 30: [z] }['y'],
+                a.b.c.d.e.f(1,2,3,4,5)
+                ]`)
+                // .invoke({
+                //     x: 10, yyy() {
+                //         return this;
+                //     }, xxx: 'xxx'
+                // }, {
+                //     x: Promise.resolve(10), y: Promise.resolve(20), z: Promise.resolve(30),
+                //     rnd() {
+                //         return Promise.resolve(Math.random());
+                //     },
+                //     zzz() {
+                //         return this;
+                //     },
+                //     a: {
+                //         b: {
+                //             c: {
+                //                 d: {
+                //                     e: {
+                //                         f() {
+                //                             return Array.from(arguments);
+                //                         }
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                // })
+            ;
+        }
 
-            let t = new Stopwatch().start();
-
-            for (let token of lexer) {
-                if (lexer.line == 1000) break;
-            }
-
-            const halfway = t.stop()['ms'];
-
-            console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
-
-            t.start();
-
-            for (let token of lexer) ;
-
-            const stop = t.stop()['ms'];
-
-            console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));
-
-        });
+        console.log("duration", t.stop()['ms']);
     });
 </script>
 </body>

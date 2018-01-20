@@ -6,8 +6,7 @@ export const Tokens = {
     Number:         Symbol("Number"),
     String:         Symbol("String"),
     Literal:        Symbol("Literal"),
-    Symbol:         Symbol("Symbol"),
-    This:           Symbol("This")
+    Symbol:         Symbol("Symbol")
 };
 
 export const Symbols = {

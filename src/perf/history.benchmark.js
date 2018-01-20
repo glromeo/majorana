@@ -3,22 +3,29 @@ import {Lexer as AngularLexer} from "../../attic/angular-lexer.js";
 import {Lexer as RegexpLexer} from "../../attic/regexp-lexer.js";
 import {Lexer} from "../main/lexer.js";
 
+// --require ../../.register.js
+
 const Benchmark = require('benchmark');
 
-const suite = new Benchmark.Suite()
+const suite = new Benchmark.Suite();
 
 const fs = require('fs');
-const sample = fs.readFileSync("../test/fixture.js", 'utf8');
+const sample = fs.readFileSync("../test/lexer.fixture.js", 'utf8');
 
-console.log('-------------------------------------------------------')
+console.log('-------------------------------------------------------');
+
+const l = new Lexer();
+for (let token of l.scan(sample)) {
+    console.log(x = token.text);
+}
 
 let x;
 
 suite
 
     .add('Lexer', function () {
-        for (let token of new Lexer(sample)) {
-            x = token.text;
+        for (let token of l.scan(sample)) {
+            console.log(x = token.text);
         }
     })
 

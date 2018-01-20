@@ -1,245 +1,242 @@
-import {Operators} from "./operators";
+import {Operators} from "./operators.js";
+import {Parser} from "./parser.js";
+import {AST} from "./ast.js";
 
-const AsyncFunction = Object.getPrototypeOf(async function () {
-}).constructor;
+const assignment = Operators.Assignment['='];
 
-const globalEval = eval;
-
-const BinaryExpression = (operators) => class {
-
-    constructor(operator, left, right) {
-        this.operator = operators[operator];
-        this.left = left;
-        this.right = right;
-    }
-
-    eval(context) {
-        return this.operator(
-            this.left.eval(context),
-            this.right.eval(context)
-        );
-    }
-
+const valueOf = {
+    [AST.String]: eval,
+    [AST.Number]: Number
 };
 
-const UnaryExpression = (operators) => class {
+export class Interpreter {
 
-    constructor(prefix, operator, argument) {
-        if (!prefix) {
-            throw TypeError("unsupported operator: postfix unary");
-        }
-        this.operator = operators[operator];
-        this.argument = argument;
+    constructor(parser = new Parser()) {
+        this.parser = parser;
     }
 
-    eval(context) {
-        return this.operator(this.argument.eval(context));
+    parse(expression) {
+        this.ast = this.parser.parse(expression);
     }
-};
 
-export const AST = {
+    eval(context, self) {
+        this.context = context;
+        this.self = self;
+        return new Promise(resolve => this[this.ast.type](this.ast, resolve));
+    }
 
-    Expression: class {
+    [AST.Expression]({expression}, callback) {
+        this[expression.type](expression, callback);
+    }
 
-        constructor(expression) {
-            this.expression = expression;
+    [AST.AssignmentExpression]({left, right}, callback) {
+        callback.pending = 3;
+
+        this[right.type](right, value => assignment(callback, 'value', value));
+
+        if (left.type === AST.Identifier) {
+            assignment(callback, 'member', left.name);
+            assignment(callback, 'object', this.context);
+        } else {
+            const lm = left.member;
+            if (left.computed) {
+                this[lm.type](lm, member => assignment(callback, 'member', member));
+            } else {
+                assignment(callback, 'member', lm.name || valueOf[lm.type](lm.text));
+            }
+            this[left.object.type](left.object, object => assignment(callback, 'object', object));
         }
+    }
 
-        eval(that, context) {
-            return this.expression.eval(Object.create(context || null, {
-                that: {value: that}
-            }));
+    [AST.CommaExpression]({list}, callback) {
+        const pending = list.length;
+        let c, expression = list[c = 0];
+
+        if (pending) {
+            const next = value => {
+                if (value instanceof Promise) {
+                    return value.then(next);
+                }
+                if (++c < pending) {
+                    expression = list[c];
+                    this[expression.type](expression, next);
+                } else {
+                    callback(value);
+                }
+            };
+            this[expression.type](expression, next);
         }
-    },
+    }
 
-    AssignmentExpression: class {
+    [AST.TernaryExpression]({test, consequent, alternate}, callback) {
+        this[test.type](test, test => {
+            if (test) {
+                this[consequent.type](consequent, callback);
+            } else {
+                this[alternate.type](alternate, callback);
+            }
+        });
+    }
 
-        constructor(left, right) {
-            this.left = left;
-            this.right = right;
+    [AST.Identifier]({name}, callback) {
+        const value = this.context[name];
+        if (value instanceof Promise) {
+            return value.then(callback);
         }
+        callback(value);
+    }
 
-        eval(context) {
-            return this.left.write(context, this.right.eval(context));
-        }
-    },
+    [AST.String]({text}, callback) {
+        callback(eval(text));
+    }
 
-    CommaExpression: class {
+    [AST.Number]({text}, callback) {
+        callback(Number(text));
+    }
 
-        constructor(expressions) {
-            this.expressions = expressions;
-        }
+    [AST.CallExpression]({callee, parameters}, callback) {
 
-        eval(context) {
+        this[callee.type](callee, (callee, self = this.self) => {
+            const length = parameters.length, args = new Array(length);
+            let p = 0, parameter = parameters[p];
+
+            if (length) {
+                const next = value => {
+                    if (value instanceof Promise) {
+                        return value.then(next);
+                    }
+                    args[p] = value;
+                    if (++p < length) {
+                        parameter = parameters[p];
+                        return this[parameter.type](parameter, next);
+                    }
+                    const result = callee.apply(self, args);
+                    if (result instanceof Promise) {
+                        return result.then(callback);
+                    }
+                    callback(result);
+                };
+                return this[parameter.type](parameter, next);
+            }
+
+            const result = callee.apply(self);
+            if (result instanceof Promise) {
+                return result.then(callback);
+            }
+            callback(result);
+        });
+    }
+
+    [AST.SelfExpression](ignored, callback) {
+        callback(this.self);
+    }
+
+    [AST.MemberExpression]({object, member, computed}, callback) {
+        this[object.type](object, object => {
             let value;
-            for (const expression of this.expressions) {
-                value = expression.eval(context);
+
+            if (computed) return this[member.type](member, member => {
+                if ((value = object[member]) instanceof Promise) {
+                    return value.then(callback)
+                }
+                callback(value, object);
+            });
+
+            if ((value = object[member.name || valueOf[member.type](member.text)]) instanceof Promise) {
+                return value.then(callback);
             }
-            return value;
-        }
-    },
+            callback(value, object)
+        });
+    }
 
-    TernaryExpression: class {
+    [AST.ArrayExpression]({elements}, callback) {
+        const length = elements.length, array = new Array(length);
+        let p = 0, element = elements[p];
 
-        constructor(test, consequent, alternate) {
-            this.test = test;
-            this.consequent = consequent;
-            this.alternate = alternate;
-        }
-
-        async eval(context) {
-            if (await this.test.eval(context)) {
-                return this.consequent.eval(context);
-            } else {
-                return this.alternate.eval(context);
-            }
-        }
-    },
-
-    LogicalExpression: BinaryExpression(Operators.Logical),
-
-    EqualityExpression: BinaryExpression(Operators.Equality),
-
-    RelationalExpression: BinaryExpression(Operators.Relational),
-
-    AdditiveExpression: BinaryExpression(Operators.Additive),
-
-    MultiplicativeExpression: BinaryExpression(Operators.Multiplicative),
-
-    UnaryExpression: UnaryExpression(Operators.Unary),
-
-    Literals: {
-        'true': {eval: () => true},
-        'false': {eval: () => false},
-        'null': {eval: () => null},
-        'undefined': {eval: () => undefined},
-        'this': {eval: context => context.that}
-    },
-
-    Identifier: class {
-
-        constructor(text) {
-            this.name = text;
+        if (length) {
+            const next = value => {
+                if (value instanceof Promise) {
+                    return value.then(next);
+                }
+                array[p] = value;
+                if (++p < length) {
+                    element = elements[p];
+                    return this[element.type](element, next);
+                } else {
+                    callback(array);
+                }
+            };
+            return this[element.type](element, next);
         }
 
-        eval(context) {
-            return context[this.name];
-        }
+        callback(array);
+    }
 
-        async write(context, value) {
-            return context[this.name] = await value;
-        }
-
-        symbol() {
-            return this.name;
-        }
-    },
-
-    Constant: class {
-
-        constructor(type, text) {
-            this.type = type;
-            this.text = text;
-        }
-
-        eval() {
-            return globalEval(this.text);
-        }
-
-        symbol() {
-            return this.text;
-        }
-    },
-
-    CallExpression: class {
-
-        constructor(callee, parameters) {
-            this.callee = callee;
-            this.parameters = parameters;
-        }
-
-        async eval(context) {
-            const callee = await this.callee.eval(context), args = [];
-            for (const parameter of this.parameters) {
-                args.push(await parameter.eval(context));
-            }
-            return callee.apply(context.that, args);
-        }
-    },
-
-    MemberExpression: class {
-
-        constructor(object, member, computed) {
-            this.object = object;
-            this.member = member;
-            this.computed = computed;
-        }
-
-        async eval(context) {
-            const object = await this.object.eval(context);
-            if (this.computed) {
-                return object[(await this.member.eval(context))];
-            } else {
-                return object[this.member.symbol()];
-            }
-        }
-
-        async write(context, value) {
-            const object = await this.object.eval(context);
-            if (this.computed) {
-                return object[await context[await this.member.eval(context)]] = await value;
-            } else {
-                return object[this.member.symbol()] = await value;
-            }
-        }
-    },
-
-    ArrayExpression: class {
-
-        constructor(elements) {
-            this.elements = elements;
-        }
-
-        async eval(context) {
-            let v = 0, value = new Array(this.elements.length);
-            for (const element of this.elements) {
-                value[v++] = await element.eval(context);
-            }
-            return value;
-        }
-    },
-
-    Property: class {
-        constructor(key, value, computed) {
-            this.key = key;
-            this.value = value;
-            this.computed = computed;
-        }
-
-        eval(context) {
-            return this.computed ? this.value.eval(context).then(value => {
-                return this.key.eval(context).then(key => {
-                    return {key, value};
-                });
-            }) : this.value.eval(context);
-        }
-    },
-
-    ObjectExpression: class {
-
-        constructor(properties) {
-            this.properties = properties;
-        }
-
-        async eval(context) {
-            const value = {};
-            for (const property of this.properties) if (property.computed) {
-                value[await property.key.eval(context)] = await property.value.eval(context);
-            } else {
-                value[property.key.symbol()] = await property.value.eval(context);
-            }
-            return value;
+    /**
+     *
+     * @param key
+     * @param value
+     * @param computed not used
+     * @param callback
+     */
+    [AST.Property]({key, value, computed}, callback) {
+        if (computed) {
+            this[key.type](key, key => this[value.type](value, value => callback(key, value)));
+        } else {
+            this[value.type](value, value => callback(key.name || valueOf[key.type](key.text), value));
         }
     }
 
+    [AST.ObjectExpression]({properties}, callback) {
+        const length = properties.length, object = {};
+        let p = 0, property = properties[p];
+
+        if (length) {
+            const next = (key, value) => {
+                if (key instanceof Promise) {
+                    return key.then(next);
+                }
+                if (value instanceof Promise) {
+                    return value.then(next);
+                }
+                object[key] = value;
+                if (++p < length) {
+                    property = properties[p];
+                    this[property.type](property, next);
+                } else {
+                    callback(object);
+                }
+            };
+            return this[property.type](property, next);
+        }
+
+        callback(object);
+    }
+
+}
+
+
+const BinaryExpression = (operators) => function ({left, right, operator}, callback) {
+    callback.pending = 2;
+    this[left.type](left, left => operators[operator](callback, 'left', left));
+    this[right.type](right, right => operators[operator](callback, 'right', right));
 };
+
+
+const UnaryExpression = (operators) => function ({prefix, operator, argument}, callback) {
+    callback.pending = 1;
+    this[argument.type](argument, argument => operators[operator](callback, 'argument', argument));
+};
+
+
+Interpreter.prototype[AST.LogicalExpression] = BinaryExpression(Operators.Logical);
+Interpreter.prototype[AST.EqualityExpression] = BinaryExpression(Operators.Equality);
+Interpreter.prototype[AST.RelationalExpression] = BinaryExpression(Operators.Relational);
+Interpreter.prototype[AST.AdditiveExpression] = BinaryExpression(Operators.Additive);
+Interpreter.prototype[AST.MultiplicativeExpression] = BinaryExpression(Operators.Multiplicative);
+Interpreter.prototype[AST.UnaryExpression] = UnaryExpression(Operators.Unary);
+
+Interpreter.prototype[AST.Literal] = function ({value}, callback) {
+    callback(value);
+};
+

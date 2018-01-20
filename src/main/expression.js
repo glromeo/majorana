@@ -1,23 +1,21 @@
-import {Parser} from "./parser";
-import {Interpreter} from "./interpreter";
+import {Parser} from "./parser.js";
+import {Interpreter} from "./interpreter.js";
 
 export class Expression {
 
-    constructor(source, parser = new Parser()) {
-        this.ast = parser.parse(source);
+    constructor(source, interpreter = new Interpreter()) {
+        this.interpreter = interpreter;
+        this.interpreter.parse(source);
     }
 
     invoke(self, context) {
-        return this.ast.eval(self, context);
+        return this.interpreter.eval(context, self);
     }
 
     static set AST(type) {
         switch (type) {
             case 'interpreter':
                 Parser.AST = Interpreter;
-                break;
-            case 'interpreter2':
-                Parser.AST = Interpreter2;
                 break;
         }
     }

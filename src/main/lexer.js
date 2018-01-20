@@ -1,5 +1,5 @@
-import {CharCode} from "./charcodes";
-import {Symbols, Tokens} from "./language";
+import {CharCode} from "./charcodes.js";
+import {Symbols, Tokens} from "./language.js";
 
 const {
     NewLine, Tab, Space, QuotationMark, DollarSign, Apostrophe, Asterisk, PlusSign, MinusSign, FullStop, Slash,
@@ -73,7 +73,7 @@ export class Lexer {
         out += ", at line: " + line + ", column: " + column + ".";
 
         const error = new Error(out);
-        error.stack = error.stack.split("\n").filter((line, index) => index > 1).join("\n");
+        error.stack = error.stack.split("\n").filter((line, index) => index !== 1).join("\n");
         throw error;
     }
 
@@ -82,35 +82,37 @@ export class Lexer {
      *
      * @returns {Number} the first non whitespace non comment charcode
      */
-    advance(offset = 0) {
+    advance(offset) {
 
         const charCodeAt = this.charCodeAt;
-        let cc, position = this.position + offset;
+        let cc, position = offset ? this.position + offset : this.position;
 
         while ((cc = charCodeAt(position)) <= Space || cc === Slash || Tilde < cc && cc < NBSP) {
 
-            if (cc === Slash) if ((cc = charCodeAt(position + 1)) === Slash) {
+            if (cc === Slash) {
+                if ((cc = charCodeAt(position + 1)) === Slash) {
 
-                position++;
+                    position++;
 
-                while ((cc = charCodeAt(++position)) && cc !== NewLine) /* ... */;
+                    while ((cc = charCodeAt(++position)) && cc !== NewLine) /* ... */;
 
-                continue;
+                    continue;
 
-            } else if (cc === Asterisk) {
+                } else if (cc === Asterisk) {
 
-                position++;
+                    position++;
 
-                while (cc = charCodeAt(++position)) if (Asterisk === cc && Slash === charCodeAt(position + 1)) {
-                    position += 2;
-                    break;
+                    while (cc = charCodeAt(++position)) if (Asterisk === cc && Slash === charCodeAt(position + 1)) {
+                        position += 2;
+                        break;
+                    }
+
+                    if (cc) continue; else this.error('Comment not closed', position);
+
+                } else {
+                    this.position = position;
+                    return this.peek = Slash;
                 }
-
-                if (cc) continue; else this.error('Comment not closed', position);
-
-            } else {
-                this.position = position;
-                return this.peek = Slash;
             }
 
             position++;
@@ -177,31 +179,33 @@ export class Lexer {
         return this.provideToken(Tokens.Number, position);
     }
 
-    nextDecimal(cc) {
-        let position = this.position;
+    nextDecimal(lastCharCode) {
+
+        const charCodeAt = this.charCodeAt;
+        let cc = lastCharCode, position = this.position;
 
         if (cc !== FullStop) {
-            while ((cc = this.charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) /* ignored */;
+            while ((cc = charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) /* ignored */;
         }
 
         if (cc === FullStop) {
-            while ((cc = this.charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) ;
+            while ((cc = charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) ;
         }
 
         if (cc === LetterE || cc === CapitalE) {
-            if ((cc = this.charCodeAt(position + 1)) === PlusSign || cc === MinusSign) position++;
+            if ((cc = charCodeAt(position + 1)) === PlusSign || cc === MinusSign) position++;
 
-            while ((cc = this.charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) ;
+            while ((cc = charCodeAt(++position)) && (cc >= DigitZero && cc <= DigitNine)) ;
         }
 
         return this.provideToken(Tokens.Number, position);
     }
 
     nextLiteral() {
-        const source = this.source;
+        const charCodeAt = this.charCodeAt;
         let cc, position = this.position;
 
-        while ((cc = source.charCodeAt(++position)) && (
+        while ((cc = charCodeAt(++position)) && (
             cc >= LetterA && cc <= LetterZ || cc >= CapitalA && cc <= CapitalZ ||
             cc >= DigitZero && cc <= DigitNine ||
             cc === LowLine || cc === DollarSign
@@ -249,10 +253,13 @@ export class Lexer {
         return token;
     }
 
+    /* TODO: is position useful? is it a waste of CPU? */
+
     provideToken(type, to) {
         const text = this.source.substring(this.position, to);
+        const token = {type: type, text: text, position: this.position};
         this.peek = this.advance(text.length);
-        return {type: type, text: text};
+        return token;
     }
 
     consume(cc) {
@@ -273,14 +280,14 @@ export class Lexer {
     }
 
     consumeTwo(cc) {
-        if (cc === this.peek && cc === this.source.charCodeAt(this.position + 1)) {
+        if (cc === this.peek && cc === this.charCodeAt(this.position + 1)) {
             this.peek = this.advance(2);
             return true;
         }
     }
 
     consumeThree(cc) {
-        if (cc === this.peek && cc === this.source.charCodeAt(this.position + 1) && cc === this.source.charCodeAt(this.position + 2)) {
+        if (cc === this.peek && cc === this.charCodeAt(this.position + 1) && cc === this.charCodeAt(this.position + 2)) {
             this.peek = this.advance(3);
             return true;
         }
@@ -292,7 +299,7 @@ export class Lexer {
 
         let p = text.length;
 
-        while (p--) if (this.source.charCodeAt(this.position + p) !== text.charCodeAt(p)) {
+        while (p--) if (this.charCodeAt(this.position + p) !== text.charCodeAt(p)) {
             return false
         }
 

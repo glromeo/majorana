@@ -21,10 +21,10 @@ describe("Lexer Tests", function () {
 
     it("tokenize angular.js parse module", function () {
 
-        const fixture = fs.readFileSync("test/lexer.fixture.js", 'utf8');
+        const fixture = fs.readFileSync("src/test/lexer.fixture.js", 'utf8');
         const lexer = new Lexer(fixture);
 
-        assert.equal(fixture.split("\n").length, 2000);
+        assert.equal(fixture.split("\n").length, 2038);
 
         let t = new Stopwatch().start();
 
