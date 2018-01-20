@@ -7,7 +7,6 @@
 </head>
 <body>
 <script>
-    const suite = new Benchmark.Suite()
 
     let s = "";
 
@@ -23,29 +22,76 @@
 
     let b = t.bind(o);
 
-    suite
+    let x = 0;
 
-        .add('Method', function () {
-            for (let n = 0; n < 1000; n++) try {
-                o.m(n++);
-            } catch (e) {
-                throw e;
+    function wrap(a) {
+        return function (b) {
+            return sum(a, b);
+        }
+    }
+
+    let sum = function (a, b) {
+        return a + b;
+    };
+
+    let ctx = {
+
+        lsum(a) {
+            return b => a + b;
+        },
+    };
+
+    new Benchmark.Suite()
+
+    // .add('Method', function () {
+    //     for (let n = 0; n < 100; n++) try {
+    //         o.m(n++);
+    //     } catch (e) {
+    //         throw e;
+    //     }
+    // })
+    //
+    // .add('Call', function () {
+    //     for (let n = 0; n < 100; n++) try {
+    //         t.call(n++);
+    //     } catch (e) {
+    //         throw e;
+    //     }
+    // })
+    //
+    // .add('Bind', function () {
+    //     for (let n = 0; n < 100; n++) try {
+    //         b(n++);
+    //     } catch (e) {
+    //         throw e;
+    //     }
+    // })
+
+        .add('Closure', function () {
+            for (let n = 0; n < 100; n++) {
+                let g = wrap(n);
+                x = g(-n);
             }
         })
 
-        .add('Call', function () {
-            for (let n = 0; n < 1000; n++) try {
-                t.call(n++);
-            } catch (e) {
-                throw e;
+        .add('Closure (CTX)', function () {
+            for (let n = 0; n < 100; n++) {
+                let g = ctx.wrap(n);
+                x = g(-n);
             }
         })
 
-        .add('Bind', function () {
-            for (let n = 0; n < 1000; n++) try {
-                b(n++);
-            } catch (e) {
-                throw e;
+        .add('Bind Inline', function () {
+            for (let n = 0; n < 100; n++) {
+                let f = sum.bind(undefined, n);
+                x = f(-n);
+            }
+        })
+
+        .add('Lambda', function () {
+            for (let n = 0; n < 100; n++) {
+                let f = b => sum(n, b);
+                x = f(-n);
             }
         })
 

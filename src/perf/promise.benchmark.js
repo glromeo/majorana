@@ -1,5 +1,3 @@
-import {Expression} from "../main/expression";
-
 // const Aigle = require("aigle");
 const Bluebird = require("bluebird");
 const Benchmark = require('benchmark');
@@ -27,6 +25,12 @@ function x(v, i) {
     }
 }
 
+function resolvePromiseNextTick(v) {
+    return new Promise(r => {
+        process.nextTick(() => r(v));
+    });
+}
+
 // Unwrappd x 634,703 ops/sec ±0.55% (81 runs sampled)
 // Diamonds x 648,699 ops/sec ±0.64% (81 runs sampled)
 // --------------------------------------------------
@@ -38,9 +42,9 @@ function x(v, i) {
 //             let o = new Array(3);
 //             o.resolve = resolve;
 //             o.pending = 3;
-//             Promise.resolve(1).then(x.bind(o, 0));
-//             Promise.resolve(2).then(x.bind(o, 1));
-//             Promise.resolve(3).then(x.bind(o, 2));
+//             resolvePromiseNextTick(1).then(x.bind(o, 0));
+//             resolvePromiseNextTick(2).then(x.bind(o, 1));
+//             resolvePromiseNextTick(3).then(x.bind(o, 2));
 //         }).then(sum => {
 //             setTimeout()(() => deferred.resolve());
 //         });
@@ -49,9 +53,9 @@ function x(v, i) {
 // .add('Diamonds', {
 //     defer: true,
 //     fn: function (deferred) {
-//         Promise.resolve(1).then(x => {
-//             Promise.resolve(2).then(y => {
-//                 Promise.resolve(3).then(z => {
+//         resolvePromiseNextTick(1).then(x => {
+//             resolvePromiseNextTick(2).then(y => {
+//                 resolvePromiseNextTick(3).then(z => {
 //                     return sum(x, y, z);
 //                 }).then(() => {
 //                     setTimeout()(() => deferred.resolve());
@@ -70,27 +74,27 @@ function adder(i, v) {
 
 
 const c = {
-    a: Promise.resolve(20),
-    b: Promise.resolve(20),
-    c: Promise.resolve(2)
+    a: resolvePromiseNextTick(20),
+    b: resolvePromiseNextTick(20),
+    c: resolvePromiseNextTick(2)
 };
 
 new Benchmark.Suite()
 
-// .add('Promise', {
-//     defer: true,
-//     fn: function (deferred) {
-//         Promise.resolve(20).then(x => {
-//             Promise.resolve(20).then(y => {
-//                 Promise.resolve(2).then(z => {
-//                     return sum(x, y, z);
-//                 }).then(() => {
-//                     deferred.resolve();
-//                 });
-//             });
-//         });
-//     }
-// })
+    .add('Promise', {
+        defer: true,
+        fn: function (deferred) {
+            resolvePromiseNextTick(20).then(x => {
+                resolvePromiseNextTick(20).then(y => {
+                    resolvePromiseNextTick(2).then(z => {
+                        return sum(x, y, z);
+                    }).then(() => {
+                        deferred.resolve();
+                    });
+                });
+            });
+        }
+    })
 
     .add('Promise (2)', {
         defer: true,
@@ -104,15 +108,15 @@ new Benchmark.Suite()
                 }
             }
 
-            Promise.resolve(20).then(v => {
+            resolvePromiseNextTick(20).then(v => {
                 x = v;
                 release();
             });
-            Promise.resolve(20).then(v => {
+            resolvePromiseNextTick(20).then(v => {
                 y = v;
                 release();
             });
-            Promise.resolve(20).then(v => {
+            resolvePromiseNextTick(20).then(v => {
                 z = v;
                 release();
             });
@@ -123,22 +127,22 @@ new Benchmark.Suite()
         defer: true,
         fn: function (deferred) {
             deferred.count = 3;
-            Promise.resolve(20).then(adder.bind(deferred, 0));
-            Promise.resolve(20).then(adder.bind(deferred, 1));
-            Promise.resolve(20).then(adder.bind(deferred, 2));
+            resolvePromiseNextTick(20).then(adder.bind(deferred, 0));
+            resolvePromiseNextTick(20).then(adder.bind(deferred, 1));
+            resolvePromiseNextTick(20).then(adder.bind(deferred, 2));
         }
     })
 
-    // .add('Async/Await', {
-    //     defer: true,
-    //     fn: async function (deferred) {
-    //         let x = await Promise.resolve(20);
-    //         let y = await Promise.resolve(20);
-    //         let z = await Promise.resolve(2);
-    //         await Promise.resolve(sum(x, y, z));
-    //         deferred.resolve();
-    //     }
-    // })
+    .add('Async/Await', {
+        defer: true,
+        fn: async function (deferred) {
+            let x = await resolvePromiseNextTick(20);
+            let y = await resolvePromiseNextTick(20);
+            let z = await resolvePromiseNextTick(2);
+            await resolvePromiseNextTick(sum(x, y, z));
+            deferred.resolve();
+        }
+    })
 
     .add('Async/Await (no promise)', {
         defer: true,
@@ -186,9 +190,9 @@ new Benchmark.Suite()
     //     defer: true,
     //     fn: async function (deferred) {
     //         let cs = Bluebird.coroutine(function* (x, y, z) {
-    //             yield Promise.resolve(x);
-    //             yield Promise.resolve(y);
-    //             yield Promise.resolve(z);
+    //             yield resolvePromiseNextTick(x);
+    //             yield resolvePromiseNextTick(y);
+    //             yield resolvePromiseNextTick(z);
     //             return sum(x, y, z);
     //         });
     //         cs(10, 30, 2).then(() => {
@@ -201,9 +205,9 @@ new Benchmark.Suite()
     .add('Bluebird', {
         defer: true,
         fn: function (deferred) {
-            Bluebird.resolve(20).then(x => {
-                Bluebird.resolve(20).then(y => {
-                    Bluebird.resolve(2).then(z => {
+            new Bluebird(r => process.nextTick(() => r = 20)).then(x => {
+                new Bluebird(r => process.nextTick(() => r = 20)).then(y => {
+                    new Bluebird(r => process.nextTick(() => r = 2)).then(z => {
                         return sum(x, y, z);
                     }).then(() => {
                         deferred.resolve();
@@ -213,19 +217,20 @@ new Benchmark.Suite()
         }
     })
 
-    //
-    // .add('Bluebird (Join)', {
-    //     defer: true,
-    //     fn: function (deferred) {
-    //         Bluebird.join(Bluebird.resolve(20), Bluebird.resolve(20), Bluebird.resolve(2))
-    //             .then(sum)
-    //             .then(() => {
-    //                 // setTimeout(() => deferred.resolve());
-    //                 process.nextTick(() => deferred.resolve());
-    //
-    //             });
-    //     }
-    // })
+
+    .add('Bluebird (Join)', {
+        defer: true,
+        fn: function (deferred) {
+            Bluebird.join(
+                new Bluebird(r => process.nextTick(() => r = 20)),
+                new Bluebird(r => process.nextTick(() => r = 20)),
+                new Bluebird(r => process.nextTick(() => r = 2)))
+                .then(sum)
+                .then(() => {
+                    deferred.resolve();
+                });
+        }
+    })
 
     .on('cycle', function (event) {
         console.log(String(event.target))

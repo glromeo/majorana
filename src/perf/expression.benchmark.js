@@ -1,5 +1,6 @@
 import Benchmark from "benchmark";
 import {Expression} from "../main/expression.js";
+import {Expression as Expression2} from "../main/expression.js";
 
 const html = `<!doctype html>
 <html ng-app="test-app">
@@ -135,106 +136,158 @@ let testApp = angular.module("test-app", []).run(["$rootScope", "$parse", functi
         //     }
         // })
         //
-            .add('AngularJS', {
-                defer: true,
-                fn: function (deferred) {
-                    // language=ECMAScript 6
-                    let getter = $parse(`
-                    [
-                        {
-                            "v": ${Math.random()}
-                        }.v,
-                        16 + 10e10,
-                        6 * 6,
-                        (110-10)/this.x,
-                        this.yyy().xxx,
-                        zzz().xxx,
-                        [x, y, z].concat(1, 2, 3),
-                        { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
-                        a.b.c.d.e.f(1,2,3,4,5)
-                    ]
-                `)({
-                        x: 10, y: 20, z: 30,
-                        rnd() {
-                            return Math.random();
-                        },
-                        zzz() {
-                            return this;
-                        },
-                        a: {
-                            b: {
-                                c: {
-                                    d: {
-                                        e: {
-                                            f() {
-                                                return Array.from(arguments);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }, {
-                        x: 10,
-                        yyy() {
-                            return this;
-                        },
-                        xxx: 'xxx'
-                    });
-                    process.nextTick(() => deferred.resolve());
-                }
-            })
-
-            .add('Lexer & Parser & Interpreter (fair)', {
-                defer: true,
-                fn: function (deferred) {
-                    new Expression(`[
-                        {
-                            "v": ${Math.random()}
-                        }.v,
-                        16 + 10e10,
-                        6 * 6,
-                        (110-10)/this.x,
-                        this.yyy().xxx,
-                        zzz().xxx,
-                        [x, y, z].concat(1, 2, 3),
-                        { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
-                        a.b.c.d.e.f(1,2,3,4,5)
-                    ]`).invoke({
-                        x: 10,
-                        yyy() {
-                            return this;
-                        },
-                        xxx: 'xxx'
-                    }, {
-                        x: 10, y: 20, z: 30,
-                        rnd() {
-                            return Math.random();
-                        },
-                        zzz() {
-                            return this;
-                        },
-                        a: {
-                            b: {
-                                c: {
-                                    d: {
-                                        e: {
-                                            f() {
-                                                return Array.from(arguments);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }).then(() => deferred.resolve())
-                }
-            })
+        //     .add('AngularJS', {
+        //         defer: true,
+        //         fn: function (deferred) {
+        //             // language=ECMAScript 6
+        //             let getter = $parse(`
+        //             [
+        //                 {
+        //                     "v": ${Math.random()}
+        //                 }.v,
+        //                 16 + 10e10,
+        //                 6 * 6,
+        //                 (110-10)/this.x,
+        //                 this.yyy().xxx,
+        //                 zzz().xxx,
+        //                 [x, y, z].concat(1, 2, 3),
+        //                 { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
+        //                 a.b.c.d.e.f(1,2,3,4,5)
+        //             ]
+        //         `)({
+        //                 x: 10, y: 20, z: 30,
+        //                 rnd() {
+        //                     return Math.random();
+        //                 },
+        //                 zzz() {
+        //                     return this;
+        //                 },
+        //                 a: {
+        //                     b: {
+        //                         c: {
+        //                             d: {
+        //                                 e: {
+        //                                     f() {
+        //                                         return Array.from(arguments);
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }, {
+        //                 x: 10,
+        //                 yyy() {
+        //                     return this;
+        //                 },
+        //                 xxx: 'xxx'
+        //             });
+        //             process.nextTick(() => deferred.resolve());
+        //         }
+        //     })
+        //
+        //     .add('Lexer & Parser & Interpreter (fair)', {
+        //         defer: true,
+        //         fn: function (deferred) {
+        //             new Expression(`[
+        //                 {
+        //                     "v": ${Math.random()}
+        //                 }.v,
+        //                 16 + 10e10,
+        //                 6 * 6,
+        //                 (110-10)/this.x,
+        //                 this.yyy().xxx,
+        //                 zzz().xxx,
+        //                 [x, y, z].concat(1, 2, 3),
+        //                 { "r": rnd(), 10: x, ["y"]: y, 30: [z] }['y'],
+        //                 a.b.c.d.e.f(1,2,3,4,5)
+        //             ]`).invoke({
+        //                 x: 10,
+        //                 yyy() {
+        //                     return this;
+        //                 },
+        //                 xxx: 'xxx'
+        //             }, {
+        //                 x: 10, y: 20, z: 30,
+        //                 rnd() {
+        //                     return Math.random();
+        //                 },
+        //                 zzz() {
+        //                     return this;
+        //                 },
+        //                 a: {
+        //                     b: {
+        //                         c: {
+        //                             d: {
+        //                                 e: {
+        //                                     f() {
+        //                                         return Array.from(arguments);
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }).then(() => deferred.resolve())
+        //         }
+        //     })
 
             .add('Lexer & Parser & Interpreter', {
                 defer: true,
                 fn: async function (deferred) {
                     await new Expression(`w = {
+                "v": 5
+            },[
+                w.v,
+                /* simple comment */  
+                0x10 + 10e10, 
+                6 * 6,
+                (110-10)/this.x,
+                this.yyy().xxx,
+                zzz().xxx,
+                /* multi 
+                   line
+                   comment */ 
+                [x, y, z].concat(1, 2, 3), 
+                { "r": rnd(), x, ["y"]: y, 30: [z] }['y'],
+                a.b.c.d.e.f(1,2,3,4,5)
+                ]
+            `).invoke({
+                        x: 10,
+                        yyy() {
+                            return this;
+                        },
+                        xxx: 'xxx'
+                    }, {
+                        x: Promise.resolve(10), y: Promise.resolve(20), z: Promise.resolve(30),
+                        rnd() {
+                            return Promise.resolve(Math.random());
+                        },
+                        zzz() {
+                            return this;
+                        },
+                        a: {
+                            b: {
+                                c: {
+                                    d: {
+                                        e: {
+                                            f() {
+                                                return Array.from(arguments);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    deferred.resolve();
+                }
+            })
+
+            .add('Lexer & Parser & Interpreter (2)', {
+                defer: true,
+                fn: async function (deferred) {
+                    await new Expression2(`w = {
                 "v": 5
             },[
                 w.v,

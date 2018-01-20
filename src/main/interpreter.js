@@ -2,8 +2,6 @@ import {Operators} from "./operators.js";
 import {Parser} from "./parser.js";
 import {AST} from "./ast.js";
 
-const assignment = Operators.Assignment['='];
-
 const valueOf = {
     [AST.String]: eval,
     [AST.Number]: Number
@@ -30,42 +28,35 @@ export class Interpreter {
     }
 
     [AST.AssignmentExpression]({left, right}, callback) {
-        callback.pending = 3;
-
-        this[right.type](right, value => assignment(callback, 'value', value));
-
-        if (left.type === AST.Identifier) {
-            assignment(callback, 'member', left.name);
-            assignment(callback, 'object', this.context);
-        } else {
-            const lm = left.member;
-            if (left.computed) {
-                this[lm.type](lm, member => assignment(callback, 'member', member));
+        this[right.type](right, right => {
+            if (left.type === AST.Identifier) {
+                callback(this.context[left.name] = right);
             } else {
-                assignment(callback, 'member', lm.name || valueOf[lm.type](lm.text));
+                this[left.object.type](left.object, object => {
+                    const member = left.member;
+                    if (left.computed) {
+                        this[member.type](member, member => callback(object[member] = right));
+                    } else {
+                        callback(object[member.name] = right);
+                    }
+                });
             }
-            this[left.object.type](left.object, object => assignment(callback, 'object', object));
-        }
+        });
     }
+
 
     [AST.CommaExpression]({list}, callback) {
         const pending = list.length;
-        let c, expression = list[c = 0];
-
-        if (pending) {
-            const next = value => {
-                if (value instanceof Promise) {
-                    return value.then(next);
-                }
-                if (++c < pending) {
-                    expression = list[c];
-                    this[expression.type](expression, next);
-                } else {
-                    callback(value);
-                }
-            };
-            this[expression.type](expression, next);
-        }
+        let p, expression = list[p = 0];
+        const next = value => {
+            if (++p < pending) {
+                expression = list[p];
+                this[expression.type](expression, next);
+            } else {
+                callback(value);
+            }
+        };
+        this[expression.type](expression, next);
     }
 
     [AST.TernaryExpression]({test, consequent, alternate}, callback) {
@@ -81,9 +72,10 @@ export class Interpreter {
     [AST.Identifier]({name}, callback) {
         const value = this.context[name];
         if (value instanceof Promise) {
-            return value.then(callback);
+            value.then(callback);
+        } else {
+            callback(value);
         }
-        callback(value);
     }
 
     [AST.String]({text}, callback) {
@@ -95,36 +87,37 @@ export class Interpreter {
     }
 
     [AST.CallExpression]({callee, parameters}, callback) {
-
-        this[callee.type](callee, (callee, self = this.self) => {
-            const length = parameters.length, args = new Array(length);
+        const pending = parameters.length;
+        if (pending) {
+            const args = new Array(pending);
             let p = 0, parameter = parameters[p];
-
-            if (length) {
-                const next = value => {
-                    if (value instanceof Promise) {
-                        return value.then(next);
-                    }
-                    args[p] = value;
-                    if (++p < length) {
-                        parameter = parameters[p];
-                        return this[parameter.type](parameter, next);
-                    }
-                    const result = callee.apply(self, args);
-                    if (result instanceof Promise) {
-                        return result.then(callback);
-                    }
+            const next = value => {
+                args[p] = value;
+                if (++p < pending) {
+                    parameter = parameters[p];
+                    this[parameter.type](parameter, next);
+                } else {
+                    this[callee.type](callee, (callee, self = this.self) => {
+                        let result;
+                        if ((result = callee.call(self, ...args)) && result.then) {
+                            result.then(callback);
+                        } else {
+                            callback(result);
+                        }
+                    });
+                }
+            };
+            this[parameter.type](parameter, next);
+        } else {
+            this[callee.type](callee, (callee, self = this.self) => {
+                let result;
+                if ((result = callee.call(self)) && result.then) {
+                    result.then(callback);
+                } else {
                     callback(result);
-                };
-                return this[parameter.type](parameter, next);
-            }
-
-            const result = callee.apply(self);
-            if (result instanceof Promise) {
-                return result.then(callback);
-            }
-            callback(result);
-        });
+                }
+            });
+        }
     }
 
     [AST.SelfExpression](ignored, callback) {
@@ -134,42 +127,42 @@ export class Interpreter {
     [AST.MemberExpression]({object, member, computed}, callback) {
         this[object.type](object, object => {
             let value;
-
-            if (computed) return this[member.type](member, member => {
-                if ((value = object[member]) instanceof Promise) {
-                    return value.then(callback)
+            if (computed) {
+                this[member.type](member, member => {
+                    if ((value = object[member]) instanceof Promise) {
+                        value.then(callback)
+                    } else {
+                        callback(value, object);
+                    }
+                });
+            } else {
+                if ((value = object[member.name || valueOf[member.type](member.text)]) instanceof Promise) {
+                    value.then(callback);
+                } else {
+                    callback(value, object)
                 }
-                callback(value, object);
-            });
-
-            if ((value = object[member.name || valueOf[member.type](member.text)]) instanceof Promise) {
-                return value.then(callback);
             }
-            callback(value, object)
         });
     }
 
     [AST.ArrayExpression]({elements}, callback) {
-        const length = elements.length, array = new Array(length);
-        let p = 0, element = elements[p];
-
-        if (length) {
+        const pending = elements.length;
+        if (pending) {
+            const array = new Array(pending);
+            let p = 0, element = elements[p];
             const next = value => {
-                if (value instanceof Promise) {
-                    return value.then(next);
-                }
                 array[p] = value;
-                if (++p < length) {
+                if (++p < pending) {
                     element = elements[p];
                     return this[element.type](element, next);
                 } else {
                     callback(array);
                 }
             };
-            return this[element.type](element, next);
+            this[element.type](element, next);
+        } else {
+            callback([]);
         }
-
-        callback(array);
     }
 
     /**
@@ -180,54 +173,46 @@ export class Interpreter {
      * @param callback
      */
     [AST.Property]({key, value, computed}, callback) {
-        if (computed) {
-            this[key.type](key, key => this[value.type](value, value => callback(key, value)));
-        } else {
-            this[value.type](value, value => callback(key.name || valueOf[key.type](key.text), value));
-        }
+        this[value.type](value, value => {
+            if (computed) {
+                this[key.type](key, key => callback(key, value));
+            } else {
+                return callback(key.name || valueOf[key.type](key.text), value);
+            }
+        });
     }
 
     [AST.ObjectExpression]({properties}, callback) {
-        const length = properties.length, object = {};
-        let p = 0, property = properties[p];
-
-        if (length) {
+        const pending = properties.length;
+        const object = {};
+        if (pending) {
+            let p = 0, property = properties[p];
             const next = (key, value) => {
-                if (key instanceof Promise) {
-                    return key.then(next);
-                }
-                if (value instanceof Promise) {
-                    return value.then(next);
-                }
                 object[key] = value;
-                if (++p < length) {
+                if (++p < pending) {
                     property = properties[p];
                     this[property.type](property, next);
                 } else {
                     callback(object);
                 }
             };
-            return this[property.type](property, next);
+            this[property.type](property, next);
+        } else {
+            callback(object);
         }
-
-        callback(object);
     }
-
 }
 
-
 const BinaryExpression = (operators) => function ({left, right, operator}, callback) {
-    callback.pending = 2;
-    this[left.type](left, left => operators[operator](callback, 'left', left));
-    this[right.type](right, right => operators[operator](callback, 'right', right));
+    this[right.type](right, right => {
+        this[left.type](left, left => callback(operators[operator](left, right)));
+    });
 };
 
 
 const UnaryExpression = (operators) => function ({prefix, operator, argument}, callback) {
-    callback.pending = 1;
-    this[argument.type](argument, argument => operators[operator](callback, 'argument', argument));
+    this[argument.type](argument, argument => callback(operators[operator](argument)));
 };
-
 
 Interpreter.prototype[AST.LogicalExpression] = BinaryExpression(Operators.Logical);
 Interpreter.prototype[AST.EqualityExpression] = BinaryExpression(Operators.Equality);

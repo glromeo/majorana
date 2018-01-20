@@ -1,32 +1,41 @@
 const Benchmark = require('benchmark');
 const {assert} = require('chai');
 
-const suite = new Benchmark.Suite()
-
 let x = 0;
 
-let bf = function (b) {
-    return this + b;
+let sum = function (a, b) {
+    return a + b;
 };
 
-suite
+function f(a) {
+    return function (b) {
+        return sum(a, b);
+    }
+}
+
+new Benchmark.Suite()
 
     .add('Closure', function () {
         for (let n=0; n<100; n++) {
-            function f(a) {
-                f = function (b) {
-                    return a + b;
-                }
-            }
-            f(n);
-            x = f(-n);
+            let g = f(n);
+            x = g(-n);
         }
         assert.equal(x, 0);
     })
 
     .add('Bind', function () {
         for (let n=0; n<100; n++) {
-            let f = bf.bind(n);
+            let f = sum.bind(undefined, n);
+            x = f(-n);
+        }
+        assert.equal(x, 0);
+    })
+
+    .add('Lambda', function () {
+        for (let n=0; n<100; n++) {
+            let f = function (b) {
+                return sum(n, b);
+            };
             x = f(-n);
         }
         assert.equal(x, 0);

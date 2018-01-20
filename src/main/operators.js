@@ -1,62 +1,42 @@
-function binary(symbol) {
-    return new Function("callback", "field", "value", `{
-        callback[field] = value;
-        if (--callback.pending === 0) {
-            callback(callback.left ${symbol} callback.right);
-        }
-    }`);
-}
-
 export const Operators = {
 
     Assignment: {
-        '=': function (callback, index, value) {
-            callback[index] = value;
-            if (--callback.pending === 0) {
-                callback(callback.object[callback.member] = callback.value);
-            }
-        }
+        '=': undefined
     },
 
     Logical: {
-        '&&': binary('&&'),
-        '||': binary('||')
+        '&&': (l, r) => l && r,
+        '||': (l, r) => l || r,
     },
 
     Equality: {
-        '==': binary('=='),
-        '===': binary('==='),
-        '!=': binary('!='),
-        '!==': binary('!==')
+        '==': (l, r) => l == r,
+        '===': (l, r) => l === r,
+        '!=': (l, r) => l != r,
+        '!==': (l, r) => l !== r,
     },
 
     Relational: {
-        '<': binary('<'),
-        '<=': binary('<='),
-        '>': binary('>'),
-        '>=': binary('>=')
+        '<': (l, r) => l < r,
+        '<=': (l, r) => l <= r,
+        '>': (l, r) => l > r,
+        '>=': (l, r) => l >= r,
     },
 
     Additive: {
-        '+': binary('+'),
-        '-': binary('-')
+        '+': (l, r) => l + r,
+        '-': (l, r) => l - r,
     },
 
     Multiplicative: {
-        '*': binary('*'),
-        '/': binary('/'),
-        '%': binary('%')
+        '*': (l, r) => l * r,
+        '/': (l, r) => l / r,
+        '%': (l, r) => l % r,
     },
 
     Unary: {
-        '+': function (callback, argument) {
-            callback(+argument);
-        },
-        '-': function (callback, argument) {
-            callback(-argument);
-        },
-        '!': function (callback, argument) {
-            callback(!argument);
-        }
+        '+': (arg) => +arg,
+        '-': (arg) => -arg,
+        '!': (arg) => !arg,
     }
 };
