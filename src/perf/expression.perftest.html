@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base href="/github.com/majorana/">
+</head>
+<body>
+<script src="node_modules/systemjs/dist/system.js"></script>
+<script type="text/javascript">
+
+    System.config({
+        baseURL: 'node_modules',
+        meta: {
+            'lib/*.js': {
+                babelOptions: {
+                    "sourceMaps": true,
+                    "plugins": [
+                        "transform-decorators-legacy",
+                        "transform-es2015-modules-systemjs"
+                    ]
+                }
+            }
+        },
+        map: {
+            'plugin-babel': 'systemjs-plugin-babel/plugin-babel.js',
+            'systemjs-babel-build': 'systemjs-plugin-babel/systemjs-babel-browser.js',
+            "transform-decorators-legacy": "babel-plugin-transform-decorators-legacy/lib/index.js",
+            "transform-es2015-modules-systemjs": "babel-plugin-transform-es2015-modules-systemjs/lib/index.js"
+        },
+        transpiler: 'plugin-babel',
+        packageConfigPaths: [
+            'node_modules/*/package.json'
+        ]
+    });
+
+    System.import("./src/main/lexer.js").then(module => {
+
+        const Lexer = module.Lexer;
+
+        class Stopwatch {
+
+            start() {
+                this.now = performance.now();
+                return this;
+            }
+
+            stop() {
+                this['ms'] = performance.now() - this.now;
+                this.now = performance.now();
+                return this;
+            }
+        }
+
+        fetch("./src/test/lexer.fixture.js").then(response => response.text()).then(fixture => {
+
+            const lexer = new Lexer(fixture);
+
+            let t = new Stopwatch().start();
+
+            for (let token of lexer) {
+                if (lexer.line == 1000) break;
+            }
+
+            const halfway = t.stop()['ms'];
+
+            console.log("1/2 delta", ((15 - halfway) / halfway).toFixed(2));
+
+            t.start();
+
+            for (let token of lexer) ;
+
+            const stop = t.stop()['ms'];
+
+            console.log("2/2 delta", ((7.5 - stop) / stop).toFixed(2));
+
+        });
+    });
+</script>
+</body>
+</html>

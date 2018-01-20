@@ -1,4 +1,5 @@
 import {Parser} from "./parser";
+import {Interpreter} from "./interpreter";
 
 export class Expression {
 
@@ -8,5 +9,16 @@ export class Expression {
 
     invoke(self, context) {
         return this.ast.eval(self, context);
+    }
+
+    static set AST(type) {
+        switch (type) {
+            case 'interpreter':
+                Parser.AST = Interpreter;
+                break;
+            case 'interpreter2':
+                Parser.AST = Interpreter2;
+                break;
+        }
     }
 }
